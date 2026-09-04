@@ -23,7 +23,7 @@ class UserController extends Controller
             })
             ->orderBy('name')
             ->limit(20)
-            ->get(['id', 'name', 'email']);
+            ->get(['id', 'name', 'email', 'avatar_path']);
 
         return response()->json($users);
     }

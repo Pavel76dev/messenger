@@ -36,6 +36,13 @@ MySQL OpenServer (как соседние домены):
 - Dev: `npm run dev` (Vite) + OpenServer для PHP
 - API base: same-origin (пустой `VITE_API_URL`)
 
+## Файлы
+
+- Диск Laravel `public` → `storage/app/public`, symlink `public/storage`
+- Аватары: `avatars/{userId}.{ext}` → URL `/storage/...`
+- Вложения сообщений: `attachments/{conversationId}/{uuid}_{name}` → URL `/storage/...`
+- В JSON API отдаём `avatar_url` / `attachments[].url` (публичные пути)
+
 ## Правила
 
 1. Фича → спека → код.

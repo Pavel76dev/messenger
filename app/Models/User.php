@@ -17,11 +17,17 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'avatar_path',
     ];
 
     protected $hidden = [
         'password',
         'remember_token',
+        'avatar_path',
+    ];
+
+    protected $appends = [
+        'avatar_url',
     ];
 
     protected $casts = [
@@ -37,5 +43,14 @@ class User extends Authenticatable
     public function messages(): HasMany
     {
         return $this->hasMany(Message::class);
+    }
+
+    public function getAvatarUrlAttribute(): ?string
+    {
+        if (! $this->avatar_path) {
+            return null;
+        }
+
+        return '/storage/'.ltrim($this->avatar_path, '/');
     }
 }

@@ -18,7 +18,7 @@
 ## Не цели (non-goals) для MVP
 
 - Групповые чаты
-- Вложения / голосовые / звонки
+- Голосовые / звонки
 - WebSocket / push (будет отдельной фичей)
 - Мобильные нативные клиенты
 - E2E-шифрование
@@ -43,4 +43,6 @@
 1. ~~Каркас монорепо и UI-шелл~~ — `features/002-monorepo-scaffold.md` (implemented)
 2. ~~Auth (register/login)~~ — `features/003-auth.md` (implemented)
 3. ~~Диалоги и сообщения~~ — `features/004-conversations-messages.md` (implemented)
-4. _(позже)_ realtime через WebSocket
+4. Профиль пользователя (имя/email/пароль/аватар) — `features/005-user-profile.md` (implemented)
+5. Вложения к сообщениям — `features/006-message-attachments.md` (implemented)
+6. _(позже)_ realtime через WebSocket

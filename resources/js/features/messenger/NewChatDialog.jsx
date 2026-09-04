@@ -106,7 +106,9 @@ export function NewChatDialog({ open, onClose }) {
                   disabled={creating}
                 >
                   <ListItemAvatar>
-                    <Avatar>{user.name?.[0]?.toUpperCase() || '?'}</Avatar>
+                    <Avatar src={user.avatar_url || undefined}>
+                      {user.name?.[0]?.toUpperCase() || '?'}
+                    </Avatar>
                   </ListItemAvatar>
                   <ListItemText primary={user.name} secondary={user.email} />
                 </ListItemButton>

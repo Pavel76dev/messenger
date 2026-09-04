@@ -17,7 +17,7 @@ class ConversationController extends Controller
         $user = $request->user();
 
         $conversations = $user->conversations()
-            ->with(['users:id,name,email', 'latestMessage.user:id,name'])
+            ->with(['users:id,name,email,avatar_path', 'latestMessage.user:id,name,avatar_path'])
             ->orderByDesc('updated_at')
             ->get()
             ->map(fn (Conversation $conversation) => $this->serialize($conversation, $user));
@@ -45,7 +45,7 @@ class ConversationController extends Controller
             ->first(fn (Conversation $c) => (int) $c->users_count === 2);
 
         if ($existing) {
-            $existing->load(['users:id,name,email', 'latestMessage.user:id,name']);
+            $existing->load(['users:id,name,email,avatar_path', 'latestMessage.user:id,name,avatar_path']);
 
             return response()->json($this->serialize($existing, $me));
         }
@@ -57,7 +57,7 @@ class ConversationController extends Controller
             return $conversation;
         });
 
-        $conversation->load(['users:id,name,email', 'latestMessage.user:id,name']);
+        $conversation->load(['users:id,name,email,avatar_path', 'latestMessage.user:id,name,avatar_path']);
 
         return response()->json($this->serialize($conversation, $me), 201);
     }
@@ -73,6 +73,7 @@ class ConversationController extends Controller
                 'id' => $peer->id,
                 'name' => $peer->name,
                 'email' => $peer->email,
+                'avatar_url' => $peer->avatar_url,
             ] : null,
             'last_message' => $last ? [
                 'id' => $last->id,

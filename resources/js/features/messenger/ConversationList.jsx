@@ -17,6 +17,9 @@ function formatPreview(conversation) {
   if (conversation.last_message?.body) {
     return conversation.last_message.body;
   }
+  if (conversation.last_message) {
+    return 'Вложение';
+  }
   return 'Нет сообщений';
 }
 
@@ -66,7 +69,9 @@ export function ConversationList({
               alignItems="flex-start"
             >
               <ListItemAvatar>
-                <Avatar>{getInitials(conversation.peer?.name)}</Avatar>
+                <Avatar src={conversation.peer?.avatar_url || undefined}>
+                  {getInitials(conversation.peer?.name)}
+                </Avatar>
               </ListItemAvatar>
               <ListItemText
                 primary={conversation.peer?.name || 'Собеседник'}

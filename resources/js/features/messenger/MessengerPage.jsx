@@ -61,8 +61,10 @@ export function MessengerPage() {
       sx={{
         display: 'flex',
         height: '100%',
+        minHeight: '100%',
         gap: 0,
         bgcolor: 'background.default',
+        overflow: 'hidden',
       }}
     >
       <Paper

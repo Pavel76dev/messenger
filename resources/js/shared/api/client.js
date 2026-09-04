@@ -20,11 +20,17 @@ export function clearToken() {
 }
 
 export async function apiRequest(path, options = {}) {
+  const isFormData =
+    typeof FormData !== 'undefined' && options.body instanceof FormData;
+
   const headers = {
     Accept: 'application/json',
-    ...(options.body ? { 'Content-Type': 'application/json' } : {}),
     ...options.headers,
   };
+
+  if (!isFormData && options.body) {
+    headers['Content-Type'] = 'application/json';
+  }
 
   const token = getToken();
   if (token) {

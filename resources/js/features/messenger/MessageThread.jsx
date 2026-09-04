@@ -1,13 +1,17 @@
 import { useEffect, useRef } from 'react';
 import {
   AppBar,
+  Avatar,
   Box,
   CircularProgress,
   IconButton,
+  Link,
+  Stack,
   Toolbar,
   Typography,
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import InsertDriveFileOutlinedIcon from '@mui/icons-material/InsertDriveFileOutlined';
 
 function formatTime(value) {
   if (!value) return '';
@@ -19,6 +23,85 @@ function formatTime(value) {
     day: '2-digit',
     month: 'short',
   });
+}
+
+function formatSize(bytes) {
+  if (!bytes && bytes !== 0) return '';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function isImageMime(mime) {
+  return typeof mime === 'string' && mime.startsWith('image/');
+}
+
+function getInitials(name) {
+  if (!name) return '?';
+  return name
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() || '')
+    .join('');
+}
+
+function MessageAttachments({ attachments, isMine }) {
+  if (!attachments?.length) return null;
+
+  return (
+    <Stack spacing={1} sx={{ mt: 1 }}>
+      {attachments.map((attachment) =>
+        isImageMime(attachment.mime) ? (
+          <Box key={attachment.id}>
+            <Box
+              component="a"
+              href={attachment.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              sx={{ display: 'block' }}
+            >
+              <Box
+                component="img"
+                src={attachment.url}
+                alt={attachment.original_name}
+                sx={{
+                  maxWidth: '100%',
+                  maxHeight: 240,
+                  borderRadius: 1,
+                  display: 'block',
+                }}
+              />
+            </Box>
+          </Box>
+        ) : (
+          <Link
+            key={attachment.id}
+            href={attachment.url}
+            download={attachment.original_name}
+            target="_blank"
+            rel="noopener noreferrer"
+            underline="hover"
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 0.75,
+              color: isMine ? 'inherit' : 'primary.main',
+            }}
+          >
+            <InsertDriveFileOutlinedIcon fontSize="small" />
+            <Box>
+              <Typography variant="body2" sx={{ wordBreak: 'break-word' }}>
+                {attachment.original_name}
+              </Typography>
+              <Typography variant="caption" sx={{ opacity: 0.8 }}>
+                {formatSize(attachment.size)} · Скачать
+              </Typography>
+            </Box>
+          </Link>
+        ),
+      )}
+    </Stack>
+  );
 }
 
 export function MessageThread({
@@ -55,15 +138,21 @@ export function MessageThread({
   return (
     <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
       <AppBar position="static" color="transparent" elevation={0}>
-        <Toolbar variant="dense" sx={{ borderBottom: 1, borderColor: 'divider' }}>
+        <Toolbar variant="dense" sx={{ borderBottom: 1, borderColor: 'divider', gap: 1.5 }}>
           <IconButton
             edge="start"
             onClick={onBack}
-            sx={{ display: { sm: 'none' }, mr: 1 }}
+            sx={{ display: { sm: 'none' }, mr: 0.5 }}
             aria-label="Назад к списку"
           >
             <ArrowBackIcon />
           </IconButton>
+          <Avatar
+            src={conversation.peer?.avatar_url || undefined}
+            sx={{ width: 36, height: 36 }}
+          >
+            {getInitials(conversation.peer?.name)}
+          </Avatar>
           <Box>
             <Typography variant="subtitle1" fontWeight={600}>
               {conversation.peer?.name || 'Собеседник'}
@@ -105,8 +194,19 @@ export function MessageThread({
                 sx={{
                   alignSelf: isMine ? 'flex-end' : 'flex-start',
                   maxWidth: '75%',
+                  display: 'flex',
+                  gap: 1,
+                  flexDirection: isMine ? 'row-reverse' : 'row',
                 }}
               >
+                {!isMine && (
+                  <Avatar
+                    src={message.user?.avatar_url || undefined}
+                    sx={{ width: 28, height: 28, mt: 0.5, fontSize: 12 }}
+                  >
+                    {getInitials(message.user?.name)}
+                  </Avatar>
+                )}
                 <Box
                   sx={{
                     px: 1.5,
@@ -115,6 +215,7 @@ export function MessageThread({
                     bgcolor: isMine ? 'primary.main' : 'background.paper',
                     color: isMine ? 'primary.contrastText' : 'text.primary',
                     boxShadow: 1,
+                    minWidth: 0,
                   }}
                 >
                   {!isMine && message.user?.name && (
@@ -122,9 +223,18 @@ export function MessageThread({
                       {message.user.name}
                     </Typography>
                   )}
-                  <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-                    {message.body}
-                  </Typography>
+                  {message.body && (
+                    <Typography
+                      variant="body1"
+                      sx={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}
+                    >
+                      {message.body}
+                    </Typography>
+                  )}
+                  <MessageAttachments
+                    attachments={message.attachments}
+                    isMine={isMine}
+                  />
                   <Typography
                     variant="caption"
                     sx={{

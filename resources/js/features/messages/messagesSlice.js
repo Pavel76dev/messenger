@@ -19,11 +19,19 @@ export const fetchMessages = createAsyncThunk(
 
 export const sendMessage = createAsyncThunk(
   'messages/send',
-  async ({ conversationId, body }, { rejectWithValue }) => {
+  async ({ conversationId, body, files = [] }, { rejectWithValue }) => {
     try {
+      const formData = new FormData();
+      if (body) {
+        formData.append('body', body);
+      }
+      files.forEach((file) => {
+        formData.append('files[]', file);
+      });
+
       const data = await apiRequest(`/api/conversations/${conversationId}/messages`, {
         method: 'POST',
-        body: JSON.stringify({ body }),
+        body: formData,
       });
       const message = data.message || data;
       return { conversationId, message };
