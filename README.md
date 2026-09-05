@@ -44,7 +44,7 @@ php artisan migrate --seed
 - alice@example.com
 - bob@example.com
 
-## Установка
+## Установка 
 
 ```bash
 cd C:\OpenServer\domains\messenger
