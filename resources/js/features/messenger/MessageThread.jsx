@@ -1,17 +1,24 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   AppBar,
   Avatar,
   Box,
+  Button,
+  ClickAwayListener,
   CircularProgress,
   IconButton,
   Link,
+  Paper,
+  Popper,
   Stack,
   Toolbar,
   Typography,
 } from '@mui/material';
+import AddReactionOutlinedIcon from '@mui/icons-material/AddReactionOutlined';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import InsertDriveFileOutlinedIcon from '@mui/icons-material/InsertDriveFileOutlined';
+import { useAppDispatch } from '../../app/hooks';
+import { REACTION_OPTIONS, toggleMessageReaction } from '../messages/messagesSlice';
 
 function formatTime(value) {
   if (!value) return '';
@@ -43,6 +50,73 @@ function getInitials(name) {
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase() || '')
     .join('');
+}
+
+function MessageReactions({ message }) {
+  const dispatch = useAppDispatch();
+  const [anchorEl, setAnchorEl] = useState(null);
+  const reactions = Array.isArray(message.reactions) ? message.reactions : [];
+
+  const handleToggle = (reactionKey) => {
+    dispatch(toggleMessageReaction({ messageId: message.id, reactionKey }));
+    setAnchorEl(null);
+  };
+
+  return (
+    <Stack direction="row" spacing={0.75} sx={{ mt: 0.75 }} alignItems="center" useFlexGap flexWrap="wrap">
+      {reactions.map((reaction) => (
+        <Button
+          key={reaction.reaction_key}
+          size="small"
+          variant={reaction.reacted_by_me ? 'contained' : 'outlined'}
+          color={reaction.reacted_by_me ? 'primary' : 'inherit'}
+          onClick={() => handleToggle(reaction.reaction_key)}
+          sx={{
+            minWidth: 'auto',
+            px: 0.9,
+            py: 0.15,
+            borderRadius: 999,
+            lineHeight: 1,
+            textTransform: 'none',
+            gap: 0.6,
+          }}
+        >
+          {reaction.emoji}
+          <Typography component="span" variant="caption">
+            {reaction.count}
+          </Typography>
+        </Button>
+      ))}
+
+      <IconButton
+        size="small"
+        aria-label="Добавить реакцию"
+        onClick={(event) => setAnchorEl(event.currentTarget)}
+      >
+        <AddReactionOutlinedIcon fontSize="small" />
+      </IconButton>
+
+      <Popper open={Boolean(anchorEl)} anchorEl={anchorEl} placement="top-start" sx={{ zIndex: 1300 }}>
+        <ClickAwayListener onClickAway={() => setAnchorEl(null)}>
+          <Paper elevation={4} sx={{ p: 0.75, borderRadius: 2 }}>
+            <Stack direction="row" spacing={0.5}>
+              {REACTION_OPTIONS.map((option) => (
+                <IconButton
+                  key={option.key}
+                  size="small"
+                  aria-label={`Реакция ${option.emoji}`}
+                  onClick={() => handleToggle(option.key)}
+                  sx={{ fontSize: 18, lineHeight: 1 }}
+                >
+                  {option.emoji}
+                </IconButton>
+              ))}
+            </Stack>
+          </Paper>
+        </ClickAwayListener>
+      </Popper>
+    </Stack>
+  );
 }
 
 function MessageAttachments({ attachments, isMine }) {
@@ -112,10 +186,13 @@ export function MessageThread({
   onBack,
 }) {
   const bottomRef = useRef(null);
+  const lastMessageId = messages.length ? messages[messages.length - 1].id : null;
 
+  // Скроллим только при новом сообщении, не при silent-poll реакций
   useEffect(() => {
+    if (!lastMessageId) return;
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [lastMessageId]);
 
   if (!conversation) {
     return (
@@ -235,6 +312,7 @@ export function MessageThread({
                     attachments={message.attachments}
                     isMine={isMine}
                   />
+                  <MessageReactions message={message} />
                   <Typography
                     variant="caption"
                     sx={{

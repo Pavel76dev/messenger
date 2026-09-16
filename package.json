@@ -3,7 +3,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build"
+    "build": "vite build",
+    "ws": "php artisan websockets:serve",
+    "soketi": "soketi start"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -11,12 +13,15 @@
     "@mui/icons-material": "^6.4.0",
     "@mui/material": "^6.4.0",
     "@reduxjs/toolkit": "^2.5.0",
+    "laravel-echo": "^2.5.0",
+    "pusher-js": "^8.6.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-redux": "^9.2.0",
     "react-router-dom": "^6.28.0"
   },
   "devDependencies": {
+    "@soketi/soketi": "^1.6.1",
     "@vitejs/plugin-react": "^4.3.4",
     "laravel-vite-plugin": "^1.2.0",
     "vite": "^6.3.5"

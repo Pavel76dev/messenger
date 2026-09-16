@@ -63,6 +63,28 @@ npm run dev
 
 Откройте `http://messenger` (OpenServer должен быть запущен). Vite HMR — порт 5173.
 
+## Realtime (WebSocket)
+
+Основной сервер — `beyondcode/laravel-websockets`:
+
+```bash
+php artisan websockets:serve
+# или
+npm run ws
+```
+
+Альтернатива (уже установлен `@soketi/soketi`):
+
+```bash
+npm run soketi
+```
+
+В `.env` должны быть `BROADCAST_DRIVER=pusher` и `PUSHER_*` / `VITE_PUSHER_*` (см. `.env.example`).
+После смены `VITE_*` пересоберите фронт.
+
+Дашборд: `http://messenger/laravel-websockets`  
+Если WS недоступен — работает polling-fallback.
+
 ## API
 
 Префикс `/api` на том же домене (Bearer Sanctum).

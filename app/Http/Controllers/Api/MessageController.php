@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Events\MessageCreated;
 use App\Http\Controllers\Controller;
 use App\Models\Conversation;
 use App\Models\Message;
 use App\Models\MessageAttachment;
+use App\Support\SafeBroadcast;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -21,14 +23,16 @@ class MessageController extends Controller
         $afterId = $request->query('after_id');
 
         $query = $conversation->messages()
-            ->with(['user:id,name,avatar_path', 'attachments'])
+            ->with(['user:id,name,avatar_path', 'attachments', 'reactions'])
             ->orderBy('id');
 
         if ($afterId !== null && $afterId !== '') {
             $query->where('id', '>', (int) $afterId);
         }
 
-        $messages = $query->limit(100)->get()->map(fn (Message $message) => $this->serialize($message));
+        $messages = $query->limit(100)->get()->map(
+            fn (Message $message) => $this->serializeForApi($message, $request->user()->id)
+        );
 
         return response()->json($messages);
     }
@@ -98,13 +102,37 @@ class MessageController extends Controller
             return $message;
         });
 
-        $message->load(['user:id,name,avatar_path', 'attachments']);
+        $message->load(['user:id,name,avatar_path', 'attachments', 'reactions']);
 
-        return response()->json($this->serialize($message), 201);
+        $payload = $this->serializeForApi($message, $request->user()->id);
+        SafeBroadcast::toOthers(new MessageCreated((int) $conversation->id, $payload));
+
+        return response()->json($payload, 201);
     }
 
-    private function serialize(Message $message): array
+    public function serializeForApi(Message $message, ?int $currentUserId = null): array
     {
+        $reactionOptions = config('message_reactions.allowed', []);
+        $groupedReactions = $message->reactions
+            ->groupBy('reaction_key')
+            ->map(function ($items, $reactionKey) use ($currentUserId, $reactionOptions) {
+                $option = $reactionOptions[$reactionKey] ?? null;
+                $userIds = $items->pluck('user_id')->map(fn ($id) => (int) $id)->values()->all();
+
+                return [
+                    'reaction_key' => $reactionKey,
+                    'emoji' => $option['emoji'] ?? $reactionKey,
+                    'count' => $items->count(),
+                    'user_ids' => $userIds,
+                    'reacted_by_me' => $currentUserId
+                        ? in_array((int) $currentUserId, $userIds, true)
+                        : false,
+                ];
+            })
+            ->sortByDesc('count')
+            ->values()
+            ->all();
+
         return [
             'id' => $message->id,
             'conversation_id' => $message->conversation_id,
@@ -123,6 +151,7 @@ class MessageController extends Controller
                 'mime' => $attachment->mime,
                 'size' => $attachment->size,
             ])->values()->all(),
+            'reactions' => $groupedReactions,
         ];
     }
 }

@@ -1,8 +1,18 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, Box, Paper } from '@mui/material';
 import { fetchConversations, selectConversation } from '../conversations/conversationsSlice';
-import { fetchMessages } from '../messages/messagesSlice';
+import {
+  applyRealtimeMessage,
+  fetchMessages,
+  setRealtimeConnected,
+} from '../messages/messagesSlice';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
+import {
+  adaptRealtimeMessage,
+  getEcho,
+  isRealtimeEnabled,
+  refreshEchoAuth,
+} from '../../shared/realtime/echo';
 import { ConversationList } from './ConversationList';
 import { MessageThread } from './MessageThread';
 import { MessageComposer } from './MessageComposer';
@@ -13,20 +23,15 @@ export function MessengerPage() {
   const [newChatOpen, setNewChatOpen] = useState(false);
   const { items, selectedId, status, error } = useAppSelector((state) => state.conversations);
   const messagesError = useAppSelector((state) => state.messages.error);
+  const realtimeConnected = useAppSelector((state) => state.messages.realtimeConnected);
   const currentUser = useAppSelector((state) => state.auth.user);
   const messagesById = useAppSelector((state) => state.messages.byConversationId);
-  const lastMessageIdRef = useRef(null);
 
   const selectedConversation = items.find((item) => item.id === selectedId) || null;
   const messages = messagesById[selectedId] || [];
   const messagesStatus = useAppSelector(
     (state) => state.messages.statusByConversationId[selectedId] || 'idle',
   );
-
-  useEffect(() => {
-    const last = messages.length ? messages[messages.length - 1] : null;
-    lastMessageIdRef.current = last?.id ?? null;
-  }, [messages]);
 
   useEffect(() => {
     dispatch(fetchConversations());
@@ -37,20 +42,69 @@ export function MessengerPage() {
       return undefined;
     }
 
-    lastMessageIdRef.current = null;
     dispatch(fetchMessages({ conversationId: selectedId }));
 
+    // Fallback polling: реже, если WebSocket подключён
+    const intervalMs = realtimeConnected ? 15000 : 3000;
     const intervalId = setInterval(() => {
       dispatch(
         fetchMessages({
           conversationId: selectedId,
-          afterId: lastMessageIdRef.current || undefined,
+          silent: true,
         }),
       );
-    }, 3000);
+    }, intervalMs);
 
     return () => clearInterval(intervalId);
-  }, [dispatch, selectedId]);
+  }, [dispatch, selectedId, realtimeConnected]);
+
+  useEffect(() => {
+    if (!selectedId || !currentUser?.id || !isRealtimeEnabled()) {
+      dispatch(setRealtimeConnected(false));
+      return undefined;
+    }
+
+    refreshEchoAuth();
+    const echo = getEcho();
+    if (!echo) {
+      dispatch(setRealtimeConnected(false));
+      return undefined;
+    }
+
+    const channelName = `conversation.${selectedId}`;
+    const channel = echo.private(channelName);
+
+    const onConnected = () => dispatch(setRealtimeConnected(true));
+    const onDisconnected = () => dispatch(setRealtimeConnected(false));
+
+    echo.connector?.pusher?.connection?.bind('connected', onConnected);
+    echo.connector?.pusher?.connection?.bind('disconnected', onDisconnected);
+    echo.connector?.pusher?.connection?.bind('unavailable', onDisconnected);
+
+    if (echo.connector?.pusher?.connection?.state === 'connected') {
+      dispatch(setRealtimeConnected(true));
+    }
+
+    const handleIncoming = (payload) => {
+      const adapted = adaptRealtimeMessage(payload?.message, currentUser.id);
+      if (adapted) {
+        dispatch(applyRealtimeMessage(adapted));
+        dispatch(fetchConversations());
+      }
+    };
+
+    channel.listen('.message.created', handleIncoming);
+    channel.listen('.message.reaction.updated', handleIncoming);
+
+    return () => {
+      channel.stopListening('.message.created');
+      channel.stopListening('.message.reaction.updated');
+      echo.leave(channelName);
+      echo.connector?.pusher?.connection?.unbind('connected', onConnected);
+      echo.connector?.pusher?.connection?.unbind('disconnected', onDisconnected);
+      echo.connector?.pusher?.connection?.unbind('unavailable', onDisconnected);
+    };
+  }, [dispatch, selectedId, currentUser?.id]);
 
   const handleSelect = (conversationId) => {
     dispatch(selectConversation(conversationId));

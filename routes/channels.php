@@ -1,14 +1,14 @@
 <?php
 
+use App\Models\Conversation;
 use Illuminate\Support\Facades\Broadcast;
 
-/*
-|--------------------------------------------------------------------------
-| Broadcast Channels
-|--------------------------------------------------------------------------
-|
-| Here you may register all of the event broadcasting channels that your
-| application supports. The given channel authorization callbacks are
-| used to check if an authenticated user can listen to the channel.
-|
-*/
+Broadcast::channel('conversation.{conversationId}', function ($user, int $conversationId) {
+    $conversation = Conversation::query()->find($conversationId);
+
+    if (! $conversation) {
+        return false;
+    }
+
+    return $conversation->hasParticipant((int) $user->id);
+});
