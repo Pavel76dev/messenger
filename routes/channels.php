@@ -12,3 +12,7 @@ Broadcast::channel('conversation.{conversationId}', function ($user, int $conver
 
     return $conversation->hasParticipant((int) $user->id);
 });
+
+Broadcast::channel('user.{userId}', function ($user, int $userId) {
+    return (int) $user->id === $userId;
+});

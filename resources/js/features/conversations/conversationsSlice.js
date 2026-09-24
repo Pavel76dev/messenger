@@ -15,11 +15,16 @@ export const fetchConversations = createAsyncThunk(
 
 export const createConversation = createAsyncThunk(
   'conversations/create',
-  async (userId, { rejectWithValue }) => {
+  async (payload, { rejectWithValue }) => {
     try {
+      const body =
+        typeof payload === 'number' || typeof payload === 'string'
+          ? { user_id: Number(payload) }
+          : payload;
+
       const data = await apiRequest('/api/conversations', {
         method: 'POST',
-        body: JSON.stringify({ user_id: userId }),
+        body: JSON.stringify(body),
       });
       return data.conversation || data;
     } catch (error) {
@@ -62,12 +67,9 @@ const conversationsSlice = createSlice({
     },
     upsertConversation(state, action) {
       const conversation = action.payload;
-      const index = state.items.findIndex((item) => item.id === conversation.id);
-      if (index >= 0) {
-        state.items[index] = { ...state.items[index], ...conversation };
-      } else {
-        state.items.unshift(conversation);
-      }
+      if (!conversation?.id) return;
+      const rest = state.items.filter((item) => item.id !== conversation.id);
+      state.items = [conversation, ...rest];
     },
   },
   extraReducers: (builder) => {

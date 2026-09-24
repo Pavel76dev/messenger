@@ -45,6 +45,7 @@ MySQL OpenServer (как соседние домены):
 
 ## Правила
 
-1. Фича → спека → код.
-2. Не смешивать бизнес-логику в React: только REST.
-3. Realtime MVP: polling; WebSocket — отдельная фича.
+1. Фича → SDLS (vibes/PDR/spec/tasks) → код.
+2. Не смешивать бизнес-логику в React: только REST (+ Echo для realtime).
+3. Realtime: WebSocket; polling — fallback (ADR-002).
+4. Минимальный дифф; спека — источник правды.

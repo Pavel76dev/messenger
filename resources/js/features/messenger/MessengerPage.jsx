@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Alert, Box, Paper } from '@mui/material';
-import { fetchConversations, selectConversation } from '../conversations/conversationsSlice';
+import { fetchConversations, selectConversation, upsertConversation } from '../conversations/conversationsSlice';
 import {
   applyRealtimeMessage,
   fetchMessages,
@@ -36,6 +36,35 @@ export function MessengerPage() {
   useEffect(() => {
     dispatch(fetchConversations());
   }, [dispatch]);
+
+  // Личный канал: новые группы/диалоги, куда добавили текущего пользователя
+  useEffect(() => {
+    if (!currentUser?.id || !isRealtimeEnabled()) {
+      return undefined;
+    }
+
+    refreshEchoAuth();
+    const echo = getEcho();
+    if (!echo) {
+      return undefined;
+    }
+
+    const channelName = `user.${currentUser.id}`;
+    const channel = echo.private(channelName);
+
+    channel.listen('.conversation.created', (payload) => {
+      if (payload?.conversation) {
+        dispatch(upsertConversation(payload.conversation));
+      } else {
+        dispatch(fetchConversations());
+      }
+    });
+
+    return () => {
+      channel.stopListening('.conversation.created');
+      echo.leave(channelName);
+    };
+  }, [dispatch, currentUser?.id]);
 
   useEffect(() => {
     if (!selectedId) {

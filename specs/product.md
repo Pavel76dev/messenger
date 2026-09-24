@@ -17,32 +17,36 @@
 
 ## Не цели (non-goals) для MVP
 
-- Групповые чаты
 - Голосовые / звонки
-- WebSocket / push (будет отдельной фичей)
 - Мобильные нативные клиенты
 - E2E-шифрование
+- Роли/админы в группах, кик после создания
 
 ## Стек (зафиксировано)
 
 | Слой | Технологии |
 |------|------------|
 | Frontend | React, Redux Toolkit, Material UI, Vite, React Router |
-| Backend | Laravel 10, Sanctum (Bearer token), SQLite для локальной разработки |
-| Realtime MVP | HTTP polling сообщений |
+| Backend | Laravel 10, Sanctum (Bearer token), MySQL (OpenServer) |
+| Realtime | WebSocket (laravel-websockets) + HTTP polling fallback |
 
 ## Метрики успеха MVP
 
 - [x] `frontend`: `npm run dev` открывает SPA
-- [x] `backend`: `php artisan serve` отдаёт API
+- [x] `backend`: API на `http://messenger`
 - [x] Регистрация / логин / logout работают end-to-end
-- [x] Можно создать/открыть 1:1 диалог и обменяться сообщениями (с polling)
+- [x] Можно создать/открыть 1:1 диалог и обменяться сообщениями
+- [x] Реакции на сообщения + realtime (см. feature 007)
+- [x] Групповые чаты (см. feature 008)
 
 ## Бэклог фич
 
 1. ~~Каркас монорепо и UI-шелл~~ — `features/002-monorepo-scaffold.md` (implemented)
 2. ~~Auth (register/login)~~ — `features/003-auth.md` (implemented)
 3. ~~Диалоги и сообщения~~ — `features/004-conversations-messages.md` (implemented)
-4. Профиль пользователя (имя/email/пароль/аватар) — `features/005-user-profile.md` (implemented)
-5. Вложения к сообщениям — `features/006-message-attachments.md` (implemented)
-6. _(позже)_ realtime через WebSocket
+4. ~~Профиль пользователя~~ — `features/005-user-profile.md` (implemented)
+5. ~~Вложения к сообщениям~~ — `features/006-message-attachments.md` (implemented)
+6. ~~Реакции + WebSocket realtime~~ — `features/007-message-reactions.md` (implemented)
+7. ~~Групповые чаты~~ — `features/008-group-chats.md` (implemented)
+
+Процесс новых фич: [`sdls.md`](./sdls.md).

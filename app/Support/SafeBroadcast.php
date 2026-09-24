@@ -18,4 +18,15 @@ class SafeBroadcast
             ]);
         }
     }
+
+    public static function now(ShouldBroadcast $event): void
+    {
+        try {
+            broadcast($event);
+        } catch (Throwable $exception) {
+            Log::warning('Broadcast failed: '.$exception->getMessage(), [
+                'event' => $event::class,
+            ]);
+        }
+    }
 }

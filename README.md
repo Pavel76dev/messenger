@@ -1,3 +1,5 @@
+Pavel
+g5XU5iWt6293gQY
 # Messenger (OpenServer)
 
 Единый Laravel-проект: API + React SPA в одном домене `http://messenger`.

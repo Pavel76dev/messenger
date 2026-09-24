@@ -32,6 +32,28 @@ function getInitials(name) {
     .join('');
 }
 
+function conversationTitle(conversation) {
+  if (conversation.type === 'group') {
+    return conversation.title || 'Группа';
+  }
+  return conversation.peer?.name || 'Собеседник';
+}
+
+function conversationSubtitle(conversation) {
+  if (conversation.type === 'group') {
+    const count = conversation.members_count || 0;
+    return `${count} уч. · ${formatPreview(conversation)}`;
+  }
+  return formatPreview(conversation);
+}
+
+function conversationAvatar(conversation) {
+  if (conversation.type === 'group') {
+    return getInitials(conversation.title || 'Гр');
+  }
+  return getInitials(conversation.peer?.name);
+}
+
 export function ConversationList({
   conversations,
   selectedId,
@@ -69,13 +91,19 @@ export function ConversationList({
               alignItems="flex-start"
             >
               <ListItemAvatar>
-                <Avatar src={conversation.peer?.avatar_url || undefined}>
-                  {getInitials(conversation.peer?.name)}
+                <Avatar
+                  src={
+                    conversation.type === 'group'
+                      ? undefined
+                      : conversation.peer?.avatar_url || undefined
+                  }
+                >
+                  {conversationAvatar(conversation)}
                 </Avatar>
               </ListItemAvatar>
               <ListItemText
-                primary={conversation.peer?.name || 'Собеседник'}
-                secondary={formatPreview(conversation)}
+                primary={conversationTitle(conversation)}
+                secondary={conversationSubtitle(conversation)}
                 primaryTypographyProps={{ noWrap: true }}
                 secondaryTypographyProps={{ noWrap: true }}
               />

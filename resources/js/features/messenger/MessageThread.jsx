@@ -225,19 +225,33 @@ export function MessageThread({
             <ArrowBackIcon />
           </IconButton>
           <Avatar
-            src={conversation.peer?.avatar_url || undefined}
+            src={
+              conversation.type === 'group'
+                ? undefined
+                : conversation.peer?.avatar_url || undefined
+            }
             sx={{ width: 36, height: 36 }}
           >
-            {getInitials(conversation.peer?.name)}
+            {conversation.type === 'group'
+              ? getInitials(conversation.title || 'Гр')
+              : getInitials(conversation.peer?.name)}
           </Avatar>
           <Box>
             <Typography variant="subtitle1" fontWeight={600}>
-              {conversation.peer?.name || 'Собеседник'}
+              {conversation.type === 'group'
+                ? conversation.title || 'Группа'
+                : conversation.peer?.name || 'Собеседник'}
             </Typography>
-            {conversation.peer?.email && (
+            {conversation.type === 'group' ? (
               <Typography variant="caption" color="text.secondary">
-                {conversation.peer.email}
+                {conversation.members_count || 0} участников
               </Typography>
+            ) : (
+              conversation.peer?.email && (
+                <Typography variant="caption" color="text.secondary">
+                  {conversation.peer.email}
+                </Typography>
+              )
             )}
           </Box>
         </Toolbar>
