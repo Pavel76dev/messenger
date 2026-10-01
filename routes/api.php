@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\CallController;
 use App\Http\Controllers\Api\ConversationController;
 use App\Http\Controllers\Api\MessageController;
 use App\Http\Controllers\Api\MessageReactionController;
@@ -23,4 +24,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/conversations/{conversation}/messages', [MessageController::class, 'index']);
     Route::post('/conversations/{conversation}/messages', [MessageController::class, 'store']);
     Route::post('/messages/{message}/reactions', [MessageReactionController::class, 'toggle']);
+
+    Route::get('/conversations/{conversation}/calls/active', [CallController::class, 'active']);
+    Route::post('/conversations/{conversation}/calls', [CallController::class, 'store']);
+    Route::post('/calls/{call}/accept', [CallController::class, 'accept']);
+    Route::post('/calls/{call}/join', [CallController::class, 'join']);
+    Route::post('/calls/{call}/reject', [CallController::class, 'reject']);
+    Route::post('/calls/{call}/end', [CallController::class, 'end']);
+    Route::post('/calls/{call}/token', [CallController::class, 'token']);
 });

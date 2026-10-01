@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Models\Call;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
@@ -14,6 +15,14 @@ class RouteServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        Route::bind('call', function (string $value) {
+            if (! ctype_digit($value)) {
+                abort(404, 'Звонок не найден.');
+            }
+
+            return Call::query()->findOrFail((int) $value);
+        });
+
         RateLimiter::for('api', function (Request $request) {
             return Limit::perMinute(120)->by($request->user()?->id ?: $request->ip());
         });

@@ -6,6 +6,13 @@ import {
   fetchMessages,
   setRealtimeConnected,
 } from '../messages/messagesSlice';
+import {
+  applyCallUpdate,
+  clearSession,
+  fetchActiveCall,
+  setIncomingCall,
+} from '../calls/callsSlice';
+import { extractCall, resolveCallId } from '../calls/callUtils';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import {
   adaptRealtimeMessage,
@@ -17,15 +24,18 @@ import { ConversationList } from './ConversationList';
 import { MessageThread } from './MessageThread';
 import { MessageComposer } from './MessageComposer';
 import { NewChatDialog } from './NewChatDialog';
+import { CallOverlay } from '../calls/CallOverlay';
 
 export function MessengerPage() {
   const dispatch = useAppDispatch();
   const [newChatOpen, setNewChatOpen] = useState(false);
   const { items, selectedId, status, error } = useAppSelector((state) => state.conversations);
   const messagesError = useAppSelector((state) => state.messages.error);
+  const callError = useAppSelector((state) => state.calls.error);
   const realtimeConnected = useAppSelector((state) => state.messages.realtimeConnected);
   const currentUser = useAppSelector((state) => state.auth.user);
   const messagesById = useAppSelector((state) => state.messages.byConversationId);
+  const callSession = useAppSelector((state) => state.calls.session);
 
   const selectedConversation = items.find((item) => item.id === selectedId) || null;
   const messages = messagesById[selectedId] || [];
@@ -37,7 +47,13 @@ export function MessengerPage() {
     dispatch(fetchConversations());
   }, [dispatch]);
 
-  // Личный канал: новые группы/диалоги, куда добавили текущего пользователя
+  useEffect(() => {
+    if (selectedId) {
+      dispatch(fetchActiveCall(selectedId));
+    }
+  }, [dispatch, selectedId]);
+
+  // Личный канал: новые группы/диалоги + входящие звонки
   useEffect(() => {
     if (!currentUser?.id || !isRealtimeEnabled()) {
       return undefined;
@@ -60,11 +76,42 @@ export function MessengerPage() {
       }
     });
 
+    const onIncoming = (payload) => {
+      const call = extractCall(payload);
+      if (!call) return;
+      if (Number(call.created_by) === Number(currentUser.id)) return;
+      if (resolveCallId(callSession?.call?.id) === resolveCallId(call.id)) return;
+      dispatch(setIncomingCall(call));
+    };
+
+    const onCallLifecycle = (payload) => {
+      const call = extractCall(payload);
+      if (!call) return;
+      dispatch(applyCallUpdate(call));
+      if (call.status === 'ended' || call.status === 'rejected') {
+        if (resolveCallId(callSession?.call?.id) === resolveCallId(call.id)) {
+          dispatch(clearSession());
+        }
+        dispatch(setIncomingCall(null));
+      }
+    };
+
+    channel.listen('.call.incoming', onIncoming);
+    channel.listen('.call.accepted', onCallLifecycle);
+    channel.listen('.call.rejected', onCallLifecycle);
+    channel.listen('.call.ended', onCallLifecycle);
+    channel.listen('.call.updated', onCallLifecycle);
+
     return () => {
       channel.stopListening('.conversation.created');
+      channel.stopListening('.call.incoming');
+      channel.stopListening('.call.accepted');
+      channel.stopListening('.call.rejected');
+      channel.stopListening('.call.ended');
+      channel.stopListening('.call.updated');
       echo.leave(channelName);
     };
-  }, [dispatch, currentUser?.id]);
+  }, [dispatch, currentUser?.id, callSession?.call?.id]);
 
   useEffect(() => {
     if (!selectedId) {
@@ -73,7 +120,6 @@ export function MessengerPage() {
 
     dispatch(fetchMessages({ conversationId: selectedId }));
 
-    // Fallback polling: реже, если WebSocket подключён
     const intervalMs = realtimeConnected ? 15000 : 3000;
     const intervalId = setInterval(() => {
       dispatch(
@@ -82,6 +128,7 @@ export function MessengerPage() {
           silent: true,
         }),
       );
+      dispatch(fetchActiveCall(selectedId));
     }, intervalMs);
 
     return () => clearInterval(intervalId);
@@ -122,18 +169,46 @@ export function MessengerPage() {
       }
     };
 
+    const onCallEvent = (payload) => {
+      const call = extractCall(payload);
+      if (!call) return;
+      dispatch(applyCallUpdate(call));
+      if (
+        Number(call.created_by) !== Number(currentUser.id) &&
+        (call.status === 'ringing' || call.status === 'active') &&
+        !callSession
+      ) {
+        dispatch(setIncomingCall(call));
+      }
+      if (call.status === 'ended' || call.status === 'rejected') {
+        if (resolveCallId(callSession?.call?.id) === resolveCallId(call.id)) {
+          dispatch(clearSession());
+        }
+      }
+    };
+
     channel.listen('.message.created', handleIncoming);
     channel.listen('.message.reaction.updated', handleIncoming);
+    channel.listen('.call.incoming', onCallEvent);
+    channel.listen('.call.accepted', onCallEvent);
+    channel.listen('.call.rejected', onCallEvent);
+    channel.listen('.call.ended', onCallEvent);
+    channel.listen('.call.updated', onCallEvent);
 
     return () => {
       channel.stopListening('.message.created');
       channel.stopListening('.message.reaction.updated');
+      channel.stopListening('.call.incoming');
+      channel.stopListening('.call.accepted');
+      channel.stopListening('.call.rejected');
+      channel.stopListening('.call.ended');
+      channel.stopListening('.call.updated');
       echo.leave(channelName);
       echo.connector?.pusher?.connection?.unbind('connected', onConnected);
       echo.connector?.pusher?.connection?.unbind('disconnected', onDisconnected);
       echo.connector?.pusher?.connection?.unbind('unavailable', onDisconnected);
     };
-  }, [dispatch, selectedId, currentUser?.id]);
+  }, [dispatch, selectedId, currentUser?.id, callSession]);
 
   const handleSelect = (conversationId) => {
     dispatch(selectConversation(conversationId));
@@ -180,9 +255,9 @@ export function MessengerPage() {
           minHeight: 0,
         }}
       >
-        {(error || messagesError) && (
+        {(error || messagesError || callError) && (
           <Alert severity="error" sx={{ m: 1 }}>
-            {error || messagesError}
+            {error || messagesError || callError}
           </Alert>
         )}
         <MessageThread
@@ -198,6 +273,7 @@ export function MessengerPage() {
       </Box>
 
       <NewChatDialog open={newChatOpen} onClose={() => setNewChatOpen(false)} />
+      <CallOverlay />
     </Box>
   );
 }

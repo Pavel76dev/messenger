@@ -87,6 +87,29 @@ npm run soketi
 Дашборд: `http://messenger/laravel-websockets`  
 Если WS недоступен — работает polling-fallback.
 
+## Звонки (LiveKit)
+
+Self-hosted SFU: `docker/livekit/`. Ключи в `.env` должны совпадать с `docker/livekit/livekit.yaml`.
+
+```bash
+docker compose -f docker/livekit/docker-compose.yml up -d
+```
+
+Переменные (см. `.env.example`):
+
+```
+LIVEKIT_URL=ws://127.0.0.1:7880
+LIVEKIT_API_KEY=APImessengerdevkey
+LIVEKIT_API_SECRET=messenger_livekit_secret_change_me_32b
+VITE_LIVEKIT_URL=ws://127.0.0.1:7880
+```
+
+После смены `VITE_*` пересоберите фронт (`npm run build` / `npm run dev`).
+
+В UI: кнопки аудио/видео в шапке чата; входящий overlay; демо экрана (desktop/Android; на iOS Safari кнопка отключена).
+
+На VPS добавьте TURN (coturn в compose закомментирован) и HTTPS — иначе мобильные клиенты за NAT/LTE не соединятся.
+
 ## API
 
 Префикс `/api` на том же домене (Bearer Sanctum).

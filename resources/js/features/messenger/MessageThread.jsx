@@ -16,9 +16,13 @@ import {
 } from '@mui/material';
 import AddReactionOutlinedIcon from '@mui/icons-material/AddReactionOutlined';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import CallIcon from '@mui/icons-material/Call';
 import InsertDriveFileOutlinedIcon from '@mui/icons-material/InsertDriveFileOutlined';
-import { useAppDispatch } from '../../app/hooks';
+import VideocamIcon from '@mui/icons-material/Videocam';
+import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { REACTION_OPTIONS, toggleMessageReaction } from '../messages/messagesSlice';
+import { endCall, joinCall, startCall } from '../calls/callsSlice';
+import { resolveCallId } from '../calls/callUtils';
 
 function formatTime(value) {
   if (!value) return '';
@@ -185,8 +189,11 @@ export function MessageThread({
   currentUserId,
   onBack,
 }) {
+  const dispatch = useAppDispatch();
   const bottomRef = useRef(null);
   const lastMessageId = messages.length ? messages[messages.length - 1].id : null;
+  const conversationActive = useAppSelector((state) => state.calls.conversationActive);
+  const callSession = useAppSelector((state) => state.calls.session);
 
   // Скроллим только при новом сообщении, не при silent-poll реакций
   useEffect(() => {
@@ -212,6 +219,17 @@ export function MessageThread({
     );
   }
 
+  const activeForThisChat =
+    conversationActive &&
+    resolveCallId(conversationActive.id) != null &&
+    Number(conversationActive.conversation_id) === Number(conversation.id) &&
+    (conversationActive.status === 'ringing' || conversationActive.status === 'active');
+
+  const canStartCall = !callSession && !activeForThisChat;
+  const activeCallId = resolveCallId(activeForThisChat?.id);
+  const isCallCreator =
+    activeForThisChat && Number(activeForThisChat.created_by) === Number(currentUserId);
+
   return (
     <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
       <AppBar position="static" color="transparent" elevation={0}>
@@ -236,8 +254,8 @@ export function MessageThread({
               ? getInitials(conversation.title || 'Гр')
               : getInitials(conversation.peer?.name)}
           </Avatar>
-          <Box>
-            <Typography variant="subtitle1" fontWeight={600}>
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Typography variant="subtitle1" fontWeight={600} noWrap>
               {conversation.type === 'group'
                 ? conversation.title || 'Группа'
                 : conversation.peer?.name || 'Собеседник'}
@@ -254,8 +272,73 @@ export function MessageThread({
               )
             )}
           </Box>
+          {canStartCall && (
+            <Stack direction="row" spacing={0.5}>
+              <IconButton
+                aria-label="Аудиозвонок"
+                onClick={() =>
+                  dispatch(startCall({ conversationId: conversation.id, mediaType: 'audio' }))
+                }
+              >
+                <CallIcon />
+              </IconButton>
+              <IconButton
+                aria-label="Видеозвонок"
+                onClick={() =>
+                  dispatch(startCall({ conversationId: conversation.id, mediaType: 'video' }))
+                }
+              >
+                <VideocamIcon />
+              </IconButton>
+            </Stack>
+          )}
         </Toolbar>
       </AppBar>
+
+      {activeForThisChat && !callSession && activeCallId != null && (
+        <Box
+          sx={{
+            px: 2,
+            py: 1,
+            bgcolor: 'primary.50',
+            borderBottom: 1,
+            borderColor: 'divider',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+            flexWrap: 'wrap',
+          }}
+        >
+          <Typography variant="body2" sx={{ flex: 1 }}>
+            {activeForThisChat.status === 'ringing'
+              ? isCallCreator
+                ? 'Ожидание ответа…'
+                : 'Входящий звонок…'
+              : 'Идёт звонок в этом чате'}
+            {activeForThisChat.media_type === 'video' ? ' (видео)' : ' (аудио)'}
+          </Typography>
+          <Button
+            size="small"
+            variant="contained"
+            color={isCallCreator ? 'primary' : 'success'}
+            onClick={() => dispatch(joinCall(activeCallId))}
+          >
+            {isCallCreator
+              ? 'Вернуться в звонок'
+              : activeForThisChat.status === 'ringing'
+                ? 'Принять'
+                : 'Присоединиться'}
+          </Button>
+          <Button
+            size="small"
+            variant="outlined"
+            color="error"
+            onClick={() => dispatch(endCall(activeCallId))}
+          >
+            {isCallCreator || activeForThisChat.status === 'active' ? 'Завершить' : 'Отклонить'}
+          </Button>
+        </Box>
+      )}
 
       <Box
         sx={{

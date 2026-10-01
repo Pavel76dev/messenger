@@ -39,3 +39,5 @@
 ## Пример полного прохода
 
 `007-message-reactions` (реакции + WebSocket): vibes `001` → pdr/feature/tasks `007` → adr `002`.
+
+`009`–`011` (звонки LiveKit): pdr/feature/tasks `009`–`011` → adr `003`.

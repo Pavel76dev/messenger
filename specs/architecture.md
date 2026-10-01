@@ -43,9 +43,17 @@ MySQL OpenServer (как соседние домены):
 - Вложения сообщений: `attachments/{conversationId}/{uuid}_{name}` → URL `/storage/...`
 - В JSON API отдаём `avatar_url` / `attachments[].url` (публичные пути)
 
+## Звонки (LiveKit)
+
+- Сигналинг звонка: Laravel REST + Echo (ADR-002)
+- Медиа: self-hosted LiveKit SFU (ADR-003), Docker: `docker/livekit/`
+- Клиент получает JWT: `POST /api/calls/{id}/token`
+- Env: `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`, `VITE_LIVEKIT_URL`
+
 ## Правила
 
 1. Фича → SDLS (vibes/PDR/spec/tasks) → код.
 2. Не смешивать бизнес-логику в React: только REST (+ Echo для realtime).
 3. Realtime: WebSocket; polling — fallback (ADR-002).
-4. Минимальный дифф; спека — источник правды.
+4. Медиа звонков — только через LiveKit, не через Echo/PHP.
+5. Минимальный дифф; спека — источник правды.
