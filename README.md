@@ -87,11 +87,22 @@ npm run soketi
 Дашборд: `http://messenger/laravel-websockets`  
 Если WS недоступен — работает polling-fallback.
 
-> На PHP 8.3+ в `beyondcode/laravel-websockets` пропатчен
-> `TriggerEventController` (default `[]` для InputBag). После `composer install`
-> при необходимости восстановите правку в
-> `vendor/beyondcode/laravel-websockets/src/HttpApi/Controllers/TriggerEventController.php`
-> и перезапустите `php artisan websockets:serve`.
+> `beyondcode/laravel-websockets` 1.14 на Symfony InputBag не умеет читать массив
+> `channels` (`Input value "channels" contains a non-scalar value`). Правка лежит в
+> `patches/TriggerEventController.php` и копируется в `vendor/` скриптом
+> `patches/apply-websockets-trigger.php` (хук `composer post-autoload-dump`).
+> После применения перезапустите `php artisan websockets:serve`.
+
+Звонки с микрофоном браузер разрешает только в безопасном контексте (`https://…`,
+`http://localhost`, `http://127.0.0.1`, `http://*.localhost`). Адрес `http://messenger`
+им не является: `navigator.mediaDevices` пустой и LiveKit падает на `getUserMedia`.
+
+Для локальной проверки откройте **http://messenger.localhost** (не `http://messenger`).
+Алиас OpenServer: в `OSPanel\userdata\profiles\Default_aliases.txt` строка
+`messenger.localhost;messenger`, плюс в hosts — `127.0.0.1 messenger.localhost`.
+После правки алиасов перезапустите OpenServer (меню → Перезапустить), иначе
+панель пересоберёт `httpd.conf` без `ServerAlias` и покажет страницу
+«Как вы здесь оказались?».
 
 ## Звонки (LiveKit)
 

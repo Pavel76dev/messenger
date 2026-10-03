@@ -21,8 +21,9 @@ import InsertDriveFileOutlinedIcon from '@mui/icons-material/InsertDriveFileOutl
 import VideocamIcon from '@mui/icons-material/Videocam';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { REACTION_OPTIONS, toggleMessageReaction } from '../messages/messagesSlice';
-import { endCall, joinCall, startCall } from '../calls/callsSlice';
+import { endCall, joinCall, setCallError, startCall } from '../calls/callsSlice';
 import { resolveCallId } from '../calls/callUtils';
+import { callMediaBlockReason } from '../calls/mediaAccess';
 
 function formatTime(value) {
   if (!value) return '';
@@ -232,6 +233,11 @@ export function MessageThread({
     activeForThisChat && Number(activeForThisChat.created_by) === Number(currentUserId);
 
   const handleAudioCall = () => {
+    const blocked = callMediaBlockReason();
+    if (blocked) {
+      dispatch(setCallError(blocked));
+      return;
+    }
     if (activeCallId != null) {
       dispatch(joinCall(activeCallId));
       return;
@@ -240,6 +246,11 @@ export function MessageThread({
   };
 
   const handleVideoCall = () => {
+    const blocked = callMediaBlockReason();
+    if (blocked) {
+      dispatch(setCallError(blocked));
+      return;
+    }
     if (activeCallId != null) {
       dispatch(joinCall(activeCallId));
       return;

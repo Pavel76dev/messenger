@@ -30,6 +30,7 @@ import {
   setCallError,
 } from './callsSlice';
 import { resolveCallId } from './callUtils';
+import { callMediaBlockReason } from './mediaAccess';
 import { canScreenShare, screenShareHint } from './screenShare';
 
 function getInitials(name) {
@@ -289,6 +290,14 @@ export function CallOverlay() {
 
     (async () => {
       setConnecting(true);
+      const blocked = callMediaBlockReason();
+      if (blocked) {
+        if (!cancelled) {
+          dispatch(setCallError(blocked));
+          setConnecting(false);
+        }
+        return;
+      }
       try {
         await nextRoom.connect(session.livekit_url, session.token);
         if (cancelled) {
@@ -306,16 +315,19 @@ export function CallOverlay() {
       } catch (err) {
         console.error(err);
         const raw = String(err?.message || err || '');
+        const isMedia = /getUserMedia|mediaDevices/i.test(raw);
         const isPc =
           /could not establish pc connection/i.test(raw) ||
           /pc connection/i.test(raw) ||
           /ICE/i.test(raw);
         dispatch(
           setCallError(
-            isPc
-              ? 'Нет медиа-соединения с LiveKit (ICE). Перезапустите: docker compose -f docker/livekit/docker-compose.yml up -d --force-recreate'
-              : raw ||
-                  'Не удалось подключиться к LiveKit. Проверьте docker/livekit и LIVEKIT_URL.',
+            isMedia
+              ? callMediaBlockReason() || raw
+              : isPc
+                ? 'Нет медиа-соединения с LiveKit (ICE). Перезапустите: docker compose -f docker/livekit/docker-compose.yml up -d --force-recreate'
+                : raw ||
+                    'Не удалось подключиться к LiveKit. Проверьте docker/livekit и LIVEKIT_URL.',
           ),
         );
       } finally {
@@ -353,6 +365,11 @@ export function CallOverlay() {
 
   const toggleMic = async () => {
     if (!room) return;
+    const blocked = callMediaBlockReason();
+    if (blocked) {
+      dispatch(setCallError(blocked));
+      return;
+    }
     const next = !micOn;
     await room.localParticipant.setMicrophoneEnabled(next);
     setMicOn(next);
@@ -360,6 +377,11 @@ export function CallOverlay() {
 
   const toggleCam = async () => {
     if (!room) return;
+    const blocked = callMediaBlockReason();
+    if (blocked) {
+      dispatch(setCallError(blocked));
+      return;
+    }
     const next = !camOn;
     await room.localParticipant.setCameraEnabled(next);
     setCamOn(next);
@@ -410,6 +432,7 @@ export function CallOverlay() {
             <Typography variant="body2" color="text.secondary">
               {incoming?.media_type === 'video' ? 'Видеозвонок' : 'Аудиозвонок'}
             </Typography>
+            {error && <Alert severity="error">{error}</Alert>}
             <Stack direction="row" spacing={2}>
               <Button
                 variant="outlined"
@@ -430,6 +453,11 @@ export function CallOverlay() {
                 disabled={incomingCallId == null}
                 onClick={() => {
                   if (incomingCallId == null) return;
+                  const blocked = callMediaBlockReason();
+                  if (blocked) {
+                    dispatch(setCallError(blocked));
+                    return;
+                  }
                   if (incoming.conversation_type === 'group' && incoming.status === 'active') {
                     dispatch(joinCall(incomingCallId));
                   } else {
