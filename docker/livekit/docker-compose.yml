@@ -6,7 +6,8 @@ services:
     ports:
       - "7880:7880"
       - "7881:7881"
-      - "50000-50200:50000-50200/udp"
+      # Должен совпадать с rtc.port_range_* в livekit.yaml (избегаем Hyper-V excluded ports)
+      - "52000-52100:52000-52100/udp"
     volumes:
       - ./livekit.yaml:/etc/livekit.yaml:ro
 

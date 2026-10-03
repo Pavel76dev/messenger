@@ -9,8 +9,10 @@ bind_addresses:
 
 rtc:
   tcp_port: 7881
-  port_range_start: 50000
-  port_range_end: 50200
+  # Не используйте 50000–50200 на Windows: Hyper-V часто держит excludedportrange,
+  # и docker compose не может пробросить UDP → контейнер без портов / "Failed to fetch".
+  port_range_start: 52000
+  port_range_end: 52100
   # Docker Desktop: без node_ip в ICE уходит IP контейнера → "could not establish pc connection"
   use_external_ip: false
   node_ip: 127.0.0.1

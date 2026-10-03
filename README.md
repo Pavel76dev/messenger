@@ -109,8 +109,13 @@ npm run soketi
 Self-hosted SFU: `docker/livekit/`. Ключи в `.env` должны совпадать с `docker/livekit/livekit.yaml`.
 
 ```bash
-docker compose -f docker/livekit/docker-compose.yml up -d
+docker compose -f docker/livekit/docker-compose.yml up -d --force-recreate
 ```
+
+Проверка: `docker ps` должен показывать `0.0.0.0:7880->7880/tcp`, а не только `7880-7881/tcp`.
+На Windows Hyper-V часто занимает UDP `50000–50xxx` (`netsh interface ipv4 show excludedportrange protocol=udp`) —
+в compose используется диапазон `52000–52100`. Если контейнер не стартует с ошибкой `bind: … forbidden`,
+смените диапазон в `docker/livekit/livekit.yaml` и `docker-compose.yml` на свободный.
 
 Переменные (см. `.env.example`):
 

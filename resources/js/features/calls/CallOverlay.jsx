@@ -316,6 +316,10 @@ export function CallOverlay() {
         console.error(err);
         const raw = String(err?.message || err || '');
         const isMedia = /getUserMedia|mediaDevices/i.test(raw);
+        const isSignal =
+          /signal connection/i.test(raw) ||
+          /Failed to fetch/i.test(raw) ||
+          /websocket error/i.test(raw);
         const isPc =
           /could not establish pc connection/i.test(raw) ||
           /pc connection/i.test(raw) ||
@@ -324,10 +328,12 @@ export function CallOverlay() {
           setCallError(
             isMedia
               ? callMediaBlockReason() || raw
-              : isPc
-                ? 'Нет медиа-соединения с LiveKit (ICE). Перезапустите: docker compose -f docker/livekit/docker-compose.yml up -d --force-recreate'
-                : raw ||
-                    'Не удалось подключиться к LiveKit. Проверьте docker/livekit и LIVEKIT_URL.',
+              : isSignal
+                ? 'Нет связи с LiveKit (сигналинг). Проверьте, что Docker запущен и порт 7880 открыт: docker compose -f docker/livekit/docker-compose.yml up -d --force-recreate'
+                : isPc
+                  ? 'Нет медиа-соединения с LiveKit (ICE). Перезапустите: docker compose -f docker/livekit/docker-compose.yml up -d --force-recreate'
+                  : raw ||
+                      'Не удалось подключиться к LiveKit. Проверьте docker/livekit и LIVEKIT_URL.',
           ),
         );
       } finally {
