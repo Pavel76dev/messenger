@@ -8,8 +8,8 @@ import {
 } from '../messages/messagesSlice';
 import {
   applyCallUpdate,
-  clearSession,
   fetchActiveCall,
+  resetCallState,
   setIncomingCall,
 } from '../calls/callsSlice';
 import { extractCall, resolveCallId } from '../calls/callUtils';
@@ -90,7 +90,7 @@ export function MessengerPage() {
       dispatch(applyCallUpdate(call));
       if (call.status === 'ended' || call.status === 'rejected') {
         if (resolveCallId(callSession?.call?.id) === resolveCallId(call.id)) {
-          dispatch(clearSession());
+          dispatch(resetCallState());
         }
         dispatch(setIncomingCall(null));
       }
@@ -182,7 +182,7 @@ export function MessengerPage() {
       }
       if (call.status === 'ended' || call.status === 'rejected') {
         if (resolveCallId(callSession?.call?.id) === resolveCallId(call.id)) {
-          dispatch(clearSession());
+          dispatch(resetCallState());
         }
       }
     };

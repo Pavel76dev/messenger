@@ -23,10 +23,10 @@ import { Room, RoomEvent, Track } from 'livekit-client';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import {
   acceptCall,
-  clearSession,
   endCall,
   joinCall,
   rejectCall,
+  resetCallState,
   setCallError,
 } from './callsSlice';
 import { resolveCallId } from './callUtils';
@@ -305,10 +305,17 @@ export function CallOverlay() {
         refreshRemotes();
       } catch (err) {
         console.error(err);
+        const raw = String(err?.message || err || '');
+        const isPc =
+          /could not establish pc connection/i.test(raw) ||
+          /pc connection/i.test(raw) ||
+          /ICE/i.test(raw);
         dispatch(
           setCallError(
-            err?.message ||
-              'Не удалось подключиться к LiveKit. Проверьте, что сервер запущен (docker/livekit).',
+            isPc
+              ? 'Нет медиа-соединения с LiveKit (ICE). Перезапустите: docker compose -f docker/livekit/docker-compose.yml up -d --force-recreate'
+              : raw ||
+                  'Не удалось подключиться к LiveKit. Проверьте docker/livekit и LIVEKIT_URL.',
           ),
         );
       } finally {
@@ -331,9 +338,14 @@ export function CallOverlay() {
   const handleHangup = async () => {
     const callId = resolveCallId(session?.call?.id);
     if (roomRef.current) {
-      await roomRef.current.disconnect();
+      try {
+        await roomRef.current.disconnect();
+      } catch (_) {
+        // ignore
+      }
     }
-    dispatch(clearSession());
+    // Сначала сбрасываем UI, чтобы трубки снова появились
+    dispatch(resetCallState());
     if (callId != null) {
       dispatch(endCall(callId));
     }

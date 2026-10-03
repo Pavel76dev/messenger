@@ -32,10 +32,10 @@ return [
                 'useTLS' => env('PUSHER_SCHEME', 'http') === 'https',
             ],
             'client_options' => [
-                // Guzzle client options
+                'timeout' => 2,
+                'connect_timeout' => 1,
             ],
         ],
-
         'ably' => [
             'driver' => 'ably',
             'key' => env('ABLY_KEY'),

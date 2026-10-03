@@ -15,6 +15,41 @@ export function isRealtimeEnabled() {
   return Boolean(import.meta.env.VITE_PUSHER_APP_KEY);
 }
 
+function createAuthorizer() {
+  return (channel) => ({
+    authorize: (socketId, callback) => {
+      const token = getToken();
+      if (!token) {
+        callback(new Error('Нет токена авторизации'), null);
+        return;
+      }
+
+      fetch('/broadcasting/auth', {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/x-www-form-urlencoded',
+          Authorization: `Bearer ${token}`,
+        },
+        body: new URLSearchParams({
+          socket_id: socketId,
+          channel_name: channel.name,
+        }),
+      })
+        .then(async (response) => {
+          if (!response.ok) {
+            const message = `Broadcast auth ${response.status}`;
+            callback(new Error(message), null);
+            return;
+          }
+          const data = await response.json();
+          callback(null, data);
+        })
+        .catch((error) => callback(error, null));
+    },
+  });
+}
+
 export function getEcho() {
   if (!isRealtimeEnabled()) {
     return null;
@@ -42,26 +77,14 @@ export function getEcho() {
     disableStats: true,
     enabledTransports: ['ws', 'wss'],
     authEndpoint: '/broadcasting/auth',
-    auth: {
-      headers: {
-        Accept: 'application/json',
-        Authorization: `Bearer ${getToken() || ''}`,
-      },
-    },
+    authorizer: createAuthorizer(),
   });
 
   return echoInstance;
 }
 
 export function refreshEchoAuth() {
-  if (!echoInstance) return;
-  const token = getToken();
-  if (echoInstance.connector?.pusher?.config?.auth?.headers) {
-    echoInstance.connector.pusher.config.auth.headers.Authorization = `Bearer ${token || ''}`;
-  }
-  if (echoInstance.options?.auth?.headers) {
-    echoInstance.options.auth.headers.Authorization = `Bearer ${token || ''}`;
-  }
+  // Token is read fresh on each authorize() via createAuthorizer.
 }
 
 export function disconnectEcho() {

@@ -108,32 +108,36 @@ const callsSlice = createSlice({
       if (!call) return;
 
       const callId = resolveCallId(call.id);
+      const isEnded = call.status === 'ended' || call.status === 'rejected';
 
       if (resolveCallId(state.session?.call?.id) === callId) {
-        state.session.call = call;
+        if (isEnded) {
+          state.session = null;
+          state.status = 'idle';
+        } else {
+          state.session.call = call;
+        }
       }
       if (resolveCallId(state.incoming?.id) === callId) {
-        if (call.status === 'ended' || call.status === 'rejected') {
-          state.incoming = null;
-        } else {
-          state.incoming = call;
-        }
+        state.incoming = isEnded ? null : call;
       }
       if (
         resolveCallId(state.conversationActive?.id) === callId ||
-        state.conversationActive?.conversation_id === call.conversation_id
+        Number(state.conversationActive?.conversation_id) === Number(call.conversation_id)
       ) {
-        if (call.status === 'ended' || call.status === 'rejected') {
-          if (resolveCallId(state.conversationActive?.id) === callId) {
-            state.conversationActive = null;
-          }
-        } else {
-          state.conversationActive = call;
-        }
+        state.conversationActive = isEnded ? null : call;
       }
     },
     clearSession(state) {
       state.session = null;
+      state.status = 'idle';
+      state.error = null;
+    },
+    /** Полный сброс UI звонка (hangup / ошибка завершения). */
+    resetCallState(state) {
+      state.session = null;
+      state.incoming = null;
+      state.conversationActive = null;
       state.status = 'idle';
       state.error = null;
     },
@@ -169,25 +173,26 @@ const callsSlice = createSlice({
       .addCase(joinCall.rejected, (state, action) => {
         state.error = action.error.message || 'Не удалось присоединиться';
       })
-      .addCase(rejectCall.fulfilled, (state) => {
+      .addCase(rejectCall.fulfilled, (state, action) => {
         state.incoming = null;
+        state.session = null;
+        state.conversationActive = null;
         state.status = 'idle';
       })
-      .addCase(endCall.fulfilled, (state, action) => {
-        const ended = extractCall(action.payload?.call);
+      .addCase(endCall.fulfilled, (state) => {
         state.session = null;
         state.incoming = null;
-        if (
-          !ended ||
-          resolveCallId(state.conversationActive?.id) === resolveCallId(ended.id)
-        ) {
-          state.conversationActive = null;
-        }
+        state.conversationActive = null;
         state.status = 'idle';
         state.error = null;
       })
       .addCase(endCall.rejected, (state, action) => {
-        state.error = action.error.message || 'Не удалось завершить звонок';
+        // Даже при ошибке сети/401 убираем UI, иначе трубка «пропадает» навсегда
+        state.session = null;
+        state.incoming = null;
+        state.conversationActive = null;
+        state.status = 'idle';
+        state.error = action.error.message || 'Не удалось завершить звонок на сервере';
       })
       .addCase(fetchActiveCall.fulfilled, (state, action) => {
         const call = extractCall(action.payload?.call) || null;
@@ -207,6 +212,7 @@ export const {
   clearIncomingCall,
   applyCallUpdate,
   clearSession,
+  resetCallState,
   setConversationActive,
   setCallError,
 } = callsSlice.actions;

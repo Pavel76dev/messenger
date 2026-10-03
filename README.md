@@ -87,6 +87,12 @@ npm run soketi
 Дашборд: `http://messenger/laravel-websockets`  
 Если WS недоступен — работает polling-fallback.
 
+> На PHP 8.3+ в `beyondcode/laravel-websockets` пропатчен
+> `TriggerEventController` (default `[]` для InputBag). После `composer install`
+> при необходимости восстановите правку в
+> `vendor/beyondcode/laravel-websockets/src/HttpApi/Controllers/TriggerEventController.php`
+> и перезапустите `php artisan websockets:serve`.
+
 ## Звонки (LiveKit)
 
 Self-hosted SFU: `docker/livekit/`. Ключи в `.env` должны совпадать с `docker/livekit/livekit.yaml`.

@@ -11,7 +11,9 @@ rtc:
   tcp_port: 7881
   port_range_start: 50000
   port_range_end: 50200
+  # Docker Desktop: без node_ip в ICE уходит IP контейнера → "could not establish pc connection"
   use_external_ip: false
+  node_ip: 127.0.0.1
 
 keys:
   APImessengerdevkey: messenger_livekit_secret_change_me_32b

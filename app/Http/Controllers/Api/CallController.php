@@ -89,12 +89,26 @@ class CallController extends Controller
         $user = $request->user();
         $this->assertCallAccess($call, $user);
 
-        if ($call->status !== Call::STATUS_RINGING) {
-            throw new ConflictHttpException('Звонок нельзя принять.');
-        }
-
         if ((int) $call->created_by === (int) $user->id) {
             throw new ConflictHttpException('Нельзя принять собственный звонок.');
+        }
+
+        // Уже принят (повторный клик / гонка) — просто выдаём token
+        if ($call->status === Call::STATUS_ACTIVE) {
+            $call->markJoined($user);
+            $call->touch();
+            $call->load(['conversation.users:id,name,email,avatar_path', 'creator:id,name,avatar_path', 'participantRows.user:id,name,avatar_path']);
+
+            return response()->json([
+                'call' => $this->serialize($call),
+                'token' => $this->liveKit->createToken($user, $call->room_name),
+                'livekit_url' => $this->liveKit->wsUrl(),
+                'already_active' => true,
+            ]);
+        }
+
+        if ($call->status !== Call::STATUS_RINGING) {
+            throw new ConflictHttpException('Звонок нельзя принять.');
         }
 
         $call->update([
@@ -102,6 +116,7 @@ class CallController extends Controller
             'started_at' => $call->started_at ?? now(),
         ]);
         $call->markJoined($user);
+        $call->touch();
         $call->load(['conversation.users:id,name,email,avatar_path', 'creator:id,name,avatar_path', 'participantRows.user:id,name,avatar_path']);
 
         $payload = $this->serialize($call);
@@ -129,6 +144,7 @@ class CallController extends Controller
         if ($call->conversation->isDirect() && $call->status === Call::STATUS_RINGING) {
             if ((int) $call->created_by === (int) $user->id) {
                 $call->markJoined($user);
+                $call->touch();
                 $call->load(['conversation.users:id,name,email,avatar_path', 'creator:id,name,avatar_path', 'participantRows.user:id,name,avatar_path']);
 
                 return response()->json([
@@ -150,6 +166,7 @@ class CallController extends Controller
         }
 
         $call->markJoined($user);
+        $call->touch();
         $call->load(['conversation.users:id,name,email,avatar_path', 'creator:id,name,avatar_path', 'participantRows.user:id,name,avatar_path']);
 
         $payload = $this->serialize($call);
@@ -261,6 +278,11 @@ class CallController extends Controller
             ->with(['conversation.users:id,name,email,avatar_path', 'creator:id,name,avatar_path', 'participantRows.user:id,name,avatar_path'])
             ->latest('id')
             ->first();
+
+        // Heartbeat: пока кто-то открыл чат со звонком — не считаем active брошенным
+        if ($call && $call->status === Call::STATUS_ACTIVE) {
+            $call->touch();
+        }
 
         return response()->json([
             'call' => $call ? $this->serialize($call) : null,

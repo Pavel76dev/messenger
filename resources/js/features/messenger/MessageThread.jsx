@@ -225,10 +225,27 @@ export function MessageThread({
     Number(conversationActive.conversation_id) === Number(conversation.id) &&
     (conversationActive.status === 'ringing' || conversationActive.status === 'active');
 
-  const canStartCall = !callSession && !activeForThisChat;
+  // Трубки скрываем только пока открыт overlay текущей сессии
+  const showCallButtons = !callSession;
   const activeCallId = resolveCallId(activeForThisChat?.id);
   const isCallCreator =
     activeForThisChat && Number(activeForThisChat.created_by) === Number(currentUserId);
+
+  const handleAudioCall = () => {
+    if (activeCallId != null) {
+      dispatch(joinCall(activeCallId));
+      return;
+    }
+    dispatch(startCall({ conversationId: conversation.id, mediaType: 'audio' }));
+  };
+
+  const handleVideoCall = () => {
+    if (activeCallId != null) {
+      dispatch(joinCall(activeCallId));
+      return;
+    }
+    dispatch(startCall({ conversationId: conversation.id, mediaType: 'video' }));
+  };
 
   return (
     <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
@@ -272,22 +289,12 @@ export function MessageThread({
               )
             )}
           </Box>
-          {canStartCall && (
+          {showCallButtons && (
             <Stack direction="row" spacing={0.5}>
-              <IconButton
-                aria-label="Аудиозвонок"
-                onClick={() =>
-                  dispatch(startCall({ conversationId: conversation.id, mediaType: 'audio' }))
-                }
-              >
+              <IconButton aria-label="Аудиозвонок" onClick={handleAudioCall}>
                 <CallIcon />
               </IconButton>
-              <IconButton
-                aria-label="Видеозвонок"
-                onClick={() =>
-                  dispatch(startCall({ conversationId: conversation.id, mediaType: 'video' }))
-                }
-              >
+              <IconButton aria-label="Видеозвонок" onClick={handleVideoCall}>
                 <VideocamIcon />
               </IconButton>
             </Stack>

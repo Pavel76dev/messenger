@@ -77,10 +77,11 @@ class Call extends Model
                 'ended_at' => now(),
             ]);
 
+        // Active without heartbeat for 5 minutes = abandoned (LiveKit down / tab closed)
         $activeExpired = static::query()
             ->where('conversation_id', $conversationId)
             ->where('status', self::STATUS_ACTIVE)
-            ->where('updated_at', '<', now()->subHours(3))
+            ->where('updated_at', '<', now()->subMinutes(5))
             ->update([
                 'status' => self::STATUS_ENDED,
                 'ended_at' => now(),
