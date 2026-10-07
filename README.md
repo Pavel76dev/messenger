@@ -36,6 +36,8 @@ DB_USERNAME=root
 DB_PASSWORD=root
 ```
 
+Нет медиа-соединения с LiveKit (ICE). Перезапустите: docker compose -f docker/livekit/docker-compose.yml up -d --force-recreate
+
 Создайте БД `messenger` в OpenServer (или через mysql CLI), затем:
 
 ```bash

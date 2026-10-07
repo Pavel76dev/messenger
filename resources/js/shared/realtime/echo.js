@@ -1,6 +1,7 @@
 import Echo from 'laravel-echo';
 import Pusher from 'pusher-js';
 import { getToken } from '../api/client';
+import { APP_BASE } from '../config';
 
 window.Pusher = Pusher;
 
@@ -9,6 +10,11 @@ let echoInstance = null;
 function boolEnv(value, fallback = false) {
   if (value === undefined || value === null || value === '') return fallback;
   return ['1', 'true', 'yes', 'on'].includes(String(value).toLowerCase());
+}
+
+function appPath(path) {
+  const normalized = path.startsWith('/') ? path : `/${path}`;
+  return `${APP_BASE}${normalized}`;
 }
 
 export function isRealtimeEnabled() {
@@ -24,7 +30,7 @@ function createAuthorizer() {
         return;
       }
 
-      fetch('/broadcasting/auth', {
+      fetch(appPath('/broadcasting/auth'), {
         method: 'POST',
         headers: {
           Accept: 'application/json',
@@ -64,6 +70,12 @@ export function getEcho() {
   const port = Number(import.meta.env.VITE_PUSHER_PORT || 6001);
   const scheme = import.meta.env.VITE_PUSHER_SCHEME || 'http';
   const forceTLS = boolEnv(import.meta.env.VITE_PUSHER_FORCE_TLS, scheme === 'https');
+  // pusher-js already appends `/app/{key}`; under subdirectory pass only APP_BASE
+  // (e.g. /__nr_gate → wss://host/__nr_gate/app/messenger-key).
+  const wsPath =
+    import.meta.env.VITE_PUSHER_WS_PATH ||
+    (APP_BASE ? APP_BASE : '/app');
+  const authEndpoint = appPath('/broadcasting/auth');
 
   echoInstance = new Echo({
     broadcaster: 'pusher',
@@ -72,11 +84,12 @@ export function getEcho() {
     wsHost: host,
     wsPort: port,
     wssPort: port,
+    wsPath,
     forceTLS,
     encrypted: forceTLS,
     disableStats: true,
     enabledTransports: ['ws', 'wss'],
-    authEndpoint: '/broadcasting/auth',
+    authEndpoint,
     authorizer: createAuthorizer(),
   });
 

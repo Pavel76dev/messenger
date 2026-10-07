@@ -5,10 +5,11 @@ import { RegisterPage } from '../features/auth/RegisterPage';
 import { ProfilePage } from '../features/auth/ProfilePage';
 import { MessengerPage } from '../features/messenger/MessengerPage';
 import { AppLayout } from '../shared/layout/AppLayout';
+import { APP_BASE } from '../shared/config';
 
 export function AppRouter() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={APP_BASE || undefined}>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />

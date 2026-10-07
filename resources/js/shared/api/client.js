@@ -1,7 +1,6 @@
-const TOKEN_KEY = 'messenger_token';
+import { API_BASE } from '../config';
 
-// Same-origin under OpenServer; override via VITE_API_URL if needed
-const API_BASE = import.meta.env.VITE_API_URL || '';
+const TOKEN_KEY = 'messenger_token';
 
 export function getToken() {
   return localStorage.getItem(TOKEN_KEY);
