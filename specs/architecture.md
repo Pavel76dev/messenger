@@ -50,6 +50,13 @@ MySQL OpenServer (как соседние домены):
 - Клиент получает JWT: `POST /api/calls/{id}/token`
 - Env: `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`, `VITE_LIVEKIT_URL`
 
+## ИИ (api-llm)
+
+- Бот — обычный `User` (`LLM_BOT_EMAIL`), диалог 1:1 (ADR-004)
+- Laravel → `POST {LLM_API_URL}/api/chat` после сообщения пользователя (`GenerateAiReply` afterResponse)
+- Env: `LLM_API_URL`, `LLM_API_TOKEN`, `LLM_BOT_*`, `LLM_TARGET` — см. `.env.example`
+- **Production (gate):** на VPS `LLM_API_URL=http://127.0.0.1:18050`; домашний ПК держит SSH reverse tunnel на `api-llm:8050` (`gate-nr.local/scripts/start_llm_reverse_tunnel.py`, по аналогии с conveyor-bridge)
+
 ## Правила
 
 1. Фича → SDLS (vibes/PDR/spec/tasks) → код.

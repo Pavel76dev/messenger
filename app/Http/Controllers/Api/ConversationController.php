@@ -6,6 +6,7 @@ use App\Events\ConversationCreated;
 use App\Http\Controllers\Controller;
 use App\Models\Conversation;
 use App\Models\User;
+use App\Services\AiBot;
 use App\Support\SafeBroadcast;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -19,6 +20,8 @@ class ConversationController extends Controller
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
+
+        app(AiBot::class)->ensureConversation($user);
 
         $conversations = $user->conversations()
             ->with(['users:id,name,email,avatar_path', 'latestMessage.user:id,name,avatar_path'])

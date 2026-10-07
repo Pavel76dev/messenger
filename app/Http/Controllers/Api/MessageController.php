@@ -4,9 +4,12 @@ namespace App\Http\Controllers\Api;
 
 use App\Events\MessageCreated;
 use App\Http\Controllers\Controller;
+use App\Jobs\GenerateAiReply;
 use App\Models\Conversation;
 use App\Models\Message;
 use App\Models\MessageAttachment;
+use App\Models\User;
+use App\Services\AiBot;
 use App\Support\SafeBroadcast;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -107,7 +110,33 @@ class MessageController extends Controller
         $payload = $this->serializeForApi($message, $request->user()->id);
         SafeBroadcast::toOthers(new MessageCreated((int) $conversation->id, $payload));
 
+        $this->maybeDispatchAiReply($conversation, $message, $request->user());
+
         return response()->json($payload, 201);
+    }
+
+    private function maybeDispatchAiReply(Conversation $conversation, Message $message, User $sender): void
+    {
+        if (! $conversation->isDirect()) {
+            return;
+        }
+
+        if (trim((string) ($message->body ?? '')) === '') {
+            return;
+        }
+
+        $aiBot = app(AiBot::class);
+        if ($aiBot->isBot($sender)) {
+            return;
+        }
+
+        $conversation->loadMissing('users:id,name,email,avatar_path');
+        $peer = $conversation->peerFor($sender);
+        if (! $aiBot->isBot($peer)) {
+            return;
+        }
+
+        GenerateAiReply::dispatch((int) $conversation->id, (int) $message->id)->afterResponse();
     }
 
     public function serializeForApi(Message $message, ?int $currentUserId = null): array

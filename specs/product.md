@@ -51,5 +51,6 @@
 8. ~~Звонки 1:1 (LiveKit)~~ — `features/009-calls-foundation.md` (implemented)
 9. ~~Групповые звонки~~ — `features/010-group-calls.md` (implemented)
 10. ~~Демонстрация экрана~~ — `features/011-screen-share.md` (implemented)
+11. ~~Чат с ИИ (api-llm)~~ — `features/012-ai-chat.md` (implemented)
 
 Процесс новых фич: [`sdls.md`](./sdls.md).

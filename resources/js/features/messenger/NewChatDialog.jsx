@@ -18,12 +18,14 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
+import SmartToyOutlinedIcon from '@mui/icons-material/SmartToyOutlined';
 import {
   clearUserSearch,
   createConversation,
   searchUsers,
 } from '../conversations/conversationsSlice';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
+import { apiRequest } from '../../shared/api/client';
 
 export function NewChatDialog({ open, onClose }) {
   const dispatch = useAppDispatch();
@@ -37,6 +39,7 @@ export function NewChatDialog({ open, onClose }) {
   const [selectedIds, setSelectedIds] = useState([]);
   const [creating, setCreating] = useState(false);
   const [localError, setLocalError] = useState('');
+  const [aiBot, setAiBot] = useState(null);
 
   useEffect(() => {
     if (!open) {
@@ -45,16 +48,33 @@ export function NewChatDialog({ open, onClose }) {
       setGroupTitle('');
       setSelectedIds([]);
       setLocalError('');
+      setAiBot(null);
       dispatch(clearUserSearch());
       return undefined;
     }
+
+    let cancelled = false;
+    apiRequest('/api/ai-bot')
+      .then((data) => {
+        if (!cancelled && data?.id) {
+          setAiBot(data);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setAiBot(null);
+        }
+      });
 
     const trimmed = query.trim();
     const timer = setTimeout(() => {
       dispatch(searchUsers(trimmed));
     }, trimmed.length === 0 ? 0 : 300);
 
-    return () => clearTimeout(timer);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
   }, [open, query, dispatch]);
 
   const handleClose = () => {
@@ -149,6 +169,19 @@ export function NewChatDialog({ open, onClose }) {
             }}
             disabled={creating}
           />
+        )}
+
+        {mode === 'direct' && aiBot && (
+          <Button
+            fullWidth
+            variant="outlined"
+            startIcon={<SmartToyOutlinedIcon />}
+            sx={{ mt: 1, mb: 0.5, justifyContent: 'flex-start' }}
+            disabled={creating}
+            onClick={() => handleSelectUser(aiBot.id)}
+          >
+            Чат с ИИ · {aiBot.name}
+          </Button>
         )}
 
         <TextField

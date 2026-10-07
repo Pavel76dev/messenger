@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\AiBotController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CallController;
 use App\Http\Controllers\Api\ConversationController;
@@ -19,6 +20,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/me/avatar', [ProfileController::class, 'uploadAvatar']);
     Route::delete('/me/avatar', [ProfileController::class, 'deleteAvatar']);
     Route::get('/users', [UserController::class, 'index']);
+    Route::get('/ai-bot', [AiBotController::class, 'show']);
     Route::get('/conversations', [ConversationController::class, 'index']);
     Route::post('/conversations', [ConversationController::class, 'store']);
     Route::get('/conversations/{conversation}/messages', [MessageController::class, 'index']);
