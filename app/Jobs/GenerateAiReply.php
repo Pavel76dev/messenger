@@ -95,7 +95,10 @@ class GenerateAiReply implements ShouldQueue
                 'conversation_id' => $this->conversationId,
                 'message_id' => $this->triggerMessageId,
             ]);
-            $reply = 'Сейчас не могу ответить: сервис ИИ недоступен. Попробуйте позже.';
+            $hint = mb_substr(trim($exception->getMessage()), 0, 180);
+            $reply = 'Сейчас не могу ответить: сервис ИИ недоступен.'
+                .($hint !== '' ? ' ('.$hint.')' : '')
+                .' Попробуйте позже.';
         }
 
         $message = $conversation->messages()->create([
