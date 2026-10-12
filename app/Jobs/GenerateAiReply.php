@@ -82,8 +82,14 @@ class GenerateAiReply implements ShouldQueue
             if ($text === '') {
                 continue;
             }
+            $isBot = (int) $item->user_id === (int) $bot->id;
+            // Заглушки/галлюцинации про туннель не кладём в контекст — иначе модель
+            // на «Проверка связи» продолжает играть в недоступный сервис.
+            if ($isBot && $this->isLlmInfrastructureNoise($text)) {
+                continue;
+            }
             $messages[] = [
-                'role' => (int) $item->user_id === (int) $bot->id ? 'assistant' : 'user',
+                'role' => $isBot ? 'assistant' : 'user',
                 'content' => $text,
             ];
         }
@@ -115,5 +121,22 @@ class GenerateAiReply implements ShouldQueue
 
         // Всем участникам, включая автора триггера (не toOthers).
         SafeBroadcast::now(new MessageCreated((int) $conversation->id, $payload));
+    }
+
+    private function isLlmInfrastructureNoise(string $text): bool
+    {
+        $lower = mb_strtolower($text);
+
+        if (str_contains($lower, 'сервис ии недоступен')) {
+            return true;
+        }
+        if (str_contains($lower, 'сервис ии временно недоступен')) {
+            return true;
+        }
+        if (str_contains($lower, '127.0.0.1:18050') && str_contains($lower, 'curl')) {
+            return true;
+        }
+
+        return false;
     }
 }

@@ -61,6 +61,7 @@ created: 2026-10-07
 - Хук в `MessageController::store`
 - Env в `.env.example`
 - Smoke: `scripts/probe_ai_llm.py`
+- Прод / туннель / runbook для агента: `C:\OpenServer\nr\gate-nr.local\AGENT_AI_LLM.md`
 
 ## Критерии приёмки
 
