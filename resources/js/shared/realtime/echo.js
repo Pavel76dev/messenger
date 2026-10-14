@@ -70,11 +70,15 @@ export function getEcho() {
   const port = Number(import.meta.env.VITE_PUSHER_PORT || 6001);
   const scheme = import.meta.env.VITE_PUSHER_SCHEME || 'http';
   const forceTLS = boolEnv(import.meta.env.VITE_PUSHER_FORCE_TLS, scheme === 'https');
-  // pusher-js already appends `/app/{key}`; under subdirectory pass only APP_BASE
-  // (e.g. /__nr_gate → wss://host/__nr_gate/app/messenger-key).
+  // pusher-js always appends `/app/{key}` after wsPath.
+  // Local: wsPath '' → ws://host:6001/app/messenger-key
+  // Subdir: APP_BASE `/__nr_gate` → …/__nr_gate/app/messenger-key
+  // Override only via VITE_PUSHER_WS_PATH (do not include trailing /app unless your proxy needs it).
   const wsPath =
-    import.meta.env.VITE_PUSHER_WS_PATH ||
-    (APP_BASE ? APP_BASE : '/app');
+    import.meta.env.VITE_PUSHER_WS_PATH !== undefined &&
+    import.meta.env.VITE_PUSHER_WS_PATH !== ''
+      ? import.meta.env.VITE_PUSHER_WS_PATH
+      : APP_BASE || '';
   const authEndpoint = appPath('/broadcasting/auth');
 
   echoInstance = new Echo({

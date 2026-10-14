@@ -45,6 +45,11 @@ class User extends Authenticatable
         return $this->hasMany(Message::class);
     }
 
+    public function audioClips(): HasMany
+    {
+        return $this->hasMany(AudioClip::class);
+    }
+
     public function getAvatarUrlAttribute(): ?string
     {
         if (! $this->avatar_path) {

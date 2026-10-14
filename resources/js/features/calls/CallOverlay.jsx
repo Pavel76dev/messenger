@@ -13,6 +13,7 @@ import {
 } from '@mui/material';
 import CallEndIcon from '@mui/icons-material/CallEnd';
 import CallIcon from '@mui/icons-material/Call';
+import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord';
 import MicIcon from '@mui/icons-material/Mic';
 import MicOffIcon from '@mui/icons-material/MicOff';
 import ScreenShareIcon from '@mui/icons-material/ScreenShare';
@@ -21,6 +22,9 @@ import VideocamIcon from '@mui/icons-material/Videocam';
 import VideocamOffIcon from '@mui/icons-material/VideocamOff';
 import { Room, RoomEvent, Track } from 'livekit-client';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
+import { AudioClipActionsDialog } from '../audioClips/AudioClipActionsDialog';
+import { useAudioClipSession } from '../audioClips/useAudioClipSession';
+import { formatElapsed } from '../audioClips/useAudioRecorder';
 import {
   acceptCall,
   endCall,
@@ -262,6 +266,8 @@ export function CallOverlay() {
   const [connecting, setConnecting] = useState(false);
   const roomRef = useRef(null);
   const shareSupported = canScreenShare();
+  const conversationId = session?.call?.conversation_id ?? null;
+  const clipSession = useAudioClipSession({ conversationId });
 
   useEffect(() => {
     if (!session?.token || !session?.livekit_url) {
@@ -560,6 +566,17 @@ export function CallOverlay() {
 
           <LocalPreview room={room} mediaType={session?.call?.media_type} />
 
+          {(clipSession.recording || clipSession.recorderError) && (
+            <Typography
+              variant="caption"
+              color={clipSession.recorderError ? 'error' : 'error.light'}
+              sx={{ display: 'block', textAlign: 'center', px: 2, pb: 1 }}
+            >
+              {clipSession.recorderError ||
+                `Запись фрагмента… ${formatElapsed(clipSession.elapsedMs)}`}
+            </Typography>
+          )}
+
           <Stack
             direction="row"
             spacing={1.5}
@@ -583,6 +600,29 @@ export function CallOverlay() {
                 {camOn ? <VideocamIcon /> : <VideocamOffIcon />}
               </IconButton>
             )}
+            <Tooltip
+              title={
+                clipSession.recording ? 'Остановить запись фрагмента' : 'Записать аудио-фрагмент'
+              }
+            >
+              <span>
+                <IconButton
+                  onClick={clipSession.handleToggle}
+                  disabled={!conversationId || clipSession.busy}
+                  aria-label={
+                    clipSession.recording ? 'Остановить запись фрагмента' : 'Записать аудио-фрагмент'
+                  }
+                  aria-pressed={clipSession.recording}
+                  sx={{
+                    bgcolor: clipSession.recording ? 'error.main' : 'rgba(255,255,255,0.12)',
+                    color: 'common.white',
+                    '&.Mui-disabled': { color: 'grey.500' },
+                  }}
+                >
+                  <FiberManualRecordIcon />
+                </IconButton>
+              </span>
+            </Tooltip>
             <Tooltip title={shareSupported ? (sharing ? 'Остановить демо' : 'Демонстрация экрана') : screenShareHint()}>
               <span>
                 <IconButton
@@ -609,6 +649,15 @@ export function CallOverlay() {
           </Stack>
         </Box>
       </Dialog>
+
+      <AudioClipActionsDialog
+        open={Boolean(clipSession.pending)}
+        busy={clipSession.busy}
+        error={clipSession.actionError}
+        onSave={clipSession.handleSave}
+        onSend={clipSession.handleSend}
+        onCancel={clipSession.clearPending}
+      />
     </>
   );
 }

@@ -48,6 +48,10 @@ function isImageMime(mime) {
   return typeof mime === 'string' && mime.startsWith('image/');
 }
 
+function isAudioMime(mime) {
+  return typeof mime === 'string' && (mime.startsWith('audio/') || mime === 'video/webm');
+}
+
 function getInitials(name) {
   if (!name) return '?';
   return name
@@ -129,30 +133,51 @@ function MessageAttachments({ attachments, isMine }) {
 
   return (
     <Stack spacing={1} sx={{ mt: 1 }}>
-      {attachments.map((attachment) =>
-        isImageMime(attachment.mime) ? (
-          <Box key={attachment.id}>
-            <Box
-              component="a"
-              href={attachment.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              sx={{ display: 'block' }}
-            >
+      {attachments.map((attachment) => {
+        if (isImageMime(attachment.mime)) {
+          return (
+            <Box key={attachment.id}>
               <Box
-                component="img"
-                src={attachment.url}
-                alt={attachment.original_name}
-                sx={{
-                  maxWidth: '100%',
-                  maxHeight: 240,
-                  borderRadius: 1,
-                  display: 'block',
-                }}
-              />
+                component="a"
+                href={attachment.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                sx={{ display: 'block' }}
+              >
+                <Box
+                  component="img"
+                  src={attachment.url}
+                  alt={attachment.original_name}
+                  sx={{
+                    maxWidth: '100%',
+                    maxHeight: 240,
+                    borderRadius: 1,
+                    display: 'block',
+                  }}
+                />
+              </Box>
             </Box>
-          </Box>
-        ) : (
+          );
+        }
+
+        if (isAudioMime(attachment.mime)) {
+          return (
+            <Box key={attachment.id} sx={{ minWidth: 200 }}>
+              <Box
+                component="audio"
+                controls
+                src={attachment.url}
+                preload="metadata"
+                sx={{ width: '100%', maxWidth: 320, display: 'block' }}
+              />
+              <Typography variant="caption" sx={{ opacity: 0.8 }}>
+                {attachment.original_name} · {formatSize(attachment.size)}
+              </Typography>
+            </Box>
+          );
+        }
+
+        return (
           <Link
             key={attachment.id}
             href={attachment.url}
@@ -177,8 +202,8 @@ function MessageAttachments({ attachments, isMine }) {
               </Typography>
             </Box>
           </Link>
-        ),
-      )}
+        );
+      })}
     </Stack>
   );
 }

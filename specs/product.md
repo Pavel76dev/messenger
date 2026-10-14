@@ -52,5 +52,10 @@
 9. ~~Групповые звонки~~ — `features/010-group-calls.md` (implemented)
 10. ~~Демонстрация экрана~~ — `features/011-screen-share.md` (implemented)
 11. ~~Чат с ИИ (api-llm)~~ — `features/012-ai-chat.md` (implemented)
+12. ~~Аудио-фрагменты (запись / серверная библиотека / отправка)~~ — `features/013-audio-clips.md` (implemented)
+13. Отправка из библиотеки + транскрибация клипов — `features/014-audio-transcription.md` (draft)
 
 Процесс новых фич: [`sdls.md`](./sdls.md).
+
+> Уточнение non-goals: «запись звонков» = архив всей конференции. Фича **013** — только
+> короткие клипы с **локального** микрофона (не remote mix); библиотека на сервере.

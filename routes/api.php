@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AiBotController;
+use App\Http\Controllers\Api\AudioClipController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CallController;
 use App\Http\Controllers\Api\ConversationController;
@@ -26,6 +27,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/conversations/{conversation}/messages', [MessageController::class, 'index']);
     Route::post('/conversations/{conversation}/messages', [MessageController::class, 'store']);
     Route::post('/messages/{message}/reactions', [MessageReactionController::class, 'toggle']);
+
+    Route::get('/audio-clips', [AudioClipController::class, 'index']);
+    Route::post('/audio-clips', [AudioClipController::class, 'store']);
+    Route::delete('/audio-clips/{audioClip}', [AudioClipController::class, 'destroy']);
 
     Route::get('/conversations/{conversation}/calls/active', [CallController::class, 'active']);
     Route::post('/conversations/{conversation}/calls', [CallController::class, 'store']);

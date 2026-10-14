@@ -41,6 +41,7 @@ MySQL OpenServer (как соседние домены):
 - Диск Laravel `public` → `storage/app/public`, symlink `public/storage`
 - Аватары: `avatars/{userId}.{ext}` → URL `/storage/...`
 - Вложения сообщений: `attachments/{conversationId}/{uuid}_{name}` → URL `/storage/...`
+- Аудио-клипы (личная библиотека): `audio_clips/{userId}/{uuid}.{ext}` → URL `/storage/...`
 - В JSON API отдаём `avatar_url` / `attachments[].url` (публичные пути)
 
 ## Звонки (LiveKit)

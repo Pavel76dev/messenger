@@ -5,13 +5,20 @@ import {
   IconButton,
   Stack,
   TextField,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import AttachFileIcon from '@mui/icons-material/AttachFile';
+import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord';
+import LibraryMusicIcon from '@mui/icons-material/LibraryMusic';
 import SendIcon from '@mui/icons-material/Send';
 import { sendMessage } from '../messages/messagesSlice';
 import { fetchConversations } from '../conversations/conversationsSlice';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
+import { AudioClipActionsDialog } from '../audioClips/AudioClipActionsDialog';
+import { AudioClipsLibraryDialog } from '../audioClips/AudioClipsLibraryDialog';
+import { useAudioClipSession } from '../audioClips/useAudioClipSession';
+import { formatElapsed } from '../audioClips/useAudioRecorder';
 
 const MAX_FILES = 5;
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
@@ -30,7 +37,10 @@ export function MessageComposer({ conversationId }) {
   const [body, setBody] = useState('');
   const [files, setFiles] = useState([]);
   const [localError, setLocalError] = useState('');
+  const [libraryOpen, setLibraryOpen] = useState(false);
   const fileInputRef = useRef(null);
+
+  const clipSession = useAudioClipSession({ conversationId });
 
   const canSend =
     (body.trim() || files.length > 0) && sendStatus !== 'loading';
@@ -110,9 +120,15 @@ export function MessageComposer({ conversationId }) {
         </Stack>
       )}
 
-      {(localError || sendError) && (
+      {(localError || sendError || clipSession.recorderError) && (
         <Typography variant="caption" color="error" sx={{ display: 'block', mb: 1 }}>
-          {localError || sendError}
+          {localError || clipSession.recorderError || sendError}
+        </Typography>
+      )}
+
+      {clipSession.recording && (
+        <Typography variant="caption" color="error" sx={{ display: 'block', mb: 1 }}>
+          Запись… {formatElapsed(clipSession.elapsedMs)}
         </Typography>
       )}
 
@@ -120,7 +136,7 @@ export function MessageComposer({ conversationId }) {
         <IconButton
           type="button"
           color="primary"
-          disabled={sendStatus === 'loading'}
+          disabled={sendStatus === 'loading' || clipSession.recording}
           aria-label="Прикрепить файл"
           onClick={() => fileInputRef.current?.click()}
         >
@@ -133,6 +149,38 @@ export function MessageComposer({ conversationId }) {
           hidden
           onChange={handleFilesSelected}
         />
+        <Tooltip title={clipSession.recording ? 'Остановить запись' : 'Записать аудио'}>
+          <span>
+            <IconButton
+              type="button"
+              color={clipSession.recording ? 'error' : 'primary'}
+              disabled={!conversationId || sendStatus === 'loading' || clipSession.busy}
+              aria-label={clipSession.recording ? 'Остановить запись' : 'Записать аудио'}
+              aria-pressed={clipSession.recording}
+              onClick={clipSession.handleToggle}
+              sx={
+                clipSession.recording
+                  ? { bgcolor: 'error.light', '&:hover': { bgcolor: 'error.main' } }
+                  : undefined
+              }
+            >
+              <FiberManualRecordIcon />
+            </IconButton>
+          </span>
+        </Tooltip>
+        <Tooltip title="Сохранённые записи">
+          <span>
+            <IconButton
+              type="button"
+              color="primary"
+              disabled={clipSession.recording}
+              aria-label="Сохранённые записи"
+              onClick={() => setLibraryOpen(true)}
+            >
+              <LibraryMusicIcon />
+            </IconButton>
+          </span>
+        </Tooltip>
         <TextField
           value={body}
           onChange={(e) => setBody(e.target.value)}
@@ -157,6 +205,19 @@ export function MessageComposer({ conversationId }) {
           <SendIcon />
         </IconButton>
       </Box>
+
+      <AudioClipActionsDialog
+        open={Boolean(clipSession.pending)}
+        busy={clipSession.busy}
+        error={clipSession.actionError}
+        onSave={clipSession.handleSave}
+        onSend={clipSession.handleSend}
+        onCancel={clipSession.clearPending}
+      />
+      <AudioClipsLibraryDialog
+        open={libraryOpen}
+        onClose={() => setLibraryOpen(false)}
+      />
     </Box>
   );
 }
