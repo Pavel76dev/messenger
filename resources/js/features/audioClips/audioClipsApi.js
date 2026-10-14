@@ -20,3 +20,14 @@ export async function saveAudioClip(file, durationMs) {
 export async function deleteAudioClip(id) {
   return apiRequest(`/api/audio-clips/${id}`, { method: 'DELETE' });
 }
+
+export async function transcribeAudioClip(id) {
+  return apiRequest(`/api/audio-clips/${id}/transcribe`, { method: 'POST' });
+}
+
+export async function sendAudioClipToChat(id, conversationId) {
+  return apiRequest(`/api/audio-clips/${id}/send`, {
+    method: 'POST',
+    body: JSON.stringify({ conversation_id: conversationId }),
+  });
+}

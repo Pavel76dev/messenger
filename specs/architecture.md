@@ -42,6 +42,7 @@ MySQL OpenServer (как соседние домены):
 - Аватары: `avatars/{userId}.{ext}` → URL `/storage/...`
 - Вложения сообщений: `attachments/{conversationId}/{uuid}_{name}` → URL `/storage/...`
 - Аудио-клипы (личная библиотека): `audio_clips/{userId}/{uuid}.{ext}` → URL `/storage/...`
+- Транскрипты клипов: поля `transcript_*` на `audio_clips`; ASR — локальный CLI `services/asr`
 - В JSON API отдаём `avatar_url` / `attachments[].url` (публичные пути)
 
 ## Звонки (LiveKit)
@@ -50,6 +51,13 @@ MySQL OpenServer (как соседние домены):
 - Медиа: self-hosted LiveKit SFU (ADR-003), Docker: `docker/livekit/`
 - Клиент получает JWT: `POST /api/calls/{id}/token`
 - Env: `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`, `VITE_LIVEKIT_URL`
+
+## ASR (внутри приложения)
+
+- Код в репо: `services/asr` (faster-whisper). **Не** отдельный HTTP как api-llm.
+- Laravel Job `TranscribeAudioClip` → subprocess `python cli.py <file>` → текст в БД
+- Env: `ASR_PYTHON` (опц.), `ASR_TIMEOUT_SEC`
+- LLM остаётся внешним (`LLM_API_URL` / api-llm)
 
 ## ИИ (api-llm)
 

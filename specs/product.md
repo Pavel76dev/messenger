@@ -53,7 +53,7 @@
 10. ~~Демонстрация экрана~~ — `features/011-screen-share.md` (implemented)
 11. ~~Чат с ИИ (api-llm)~~ — `features/012-ai-chat.md` (implemented)
 12. ~~Аудио-фрагменты (запись / серверная библиотека / отправка)~~ — `features/013-audio-clips.md` (implemented)
-13. Отправка из библиотеки + транскрибация клипов — `features/014-audio-transcription.md` (draft)
+13. ~~Отправка из библиотеки + транскрибация клипов~~ — `features/014-audio-transcription.md` (implemented)
 
 Процесс новых фич: [`sdls.md`](./sdls.md).
 

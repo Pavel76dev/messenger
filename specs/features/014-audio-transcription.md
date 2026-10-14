@@ -1,7 +1,7 @@
 ---
 id: 014-audio-transcription
-title: Библиотека — отправка + транскрибация клипов
-status: draft
+title: Библиотека — отправка + транскрибация (ASR в репо)
+status: implemented
 owner: team
 created: 2026-10-14
 ---
@@ -10,65 +10,48 @@ created: 2026-10-14
 
 ## Контекст
 
-PDR: `specs/pdr/014-audio-transcription.md`. База: `013-audio-clips`.
-Ориентир ASR: `C:\OpenServer\video` (faster-whisper).
+PDR + ADR-006. ASR **внутри** messenger (`services/asr/cli.py`), не внешний HTTP как LLM.
 
 ## Цель
 
-Из списка сохранённых записей: отправить в текущий чат; запустить транскрибацию;
-просмотреть готовый текст.
+Send клипа в открытый чат; транскрибировать локально; открыть текст.
 
 ## User stories
 
-- Как пользователь, я из библиотеки отправляю клип в открытый чат.
-- Как пользователь, я нажимаю «Транскрибировать» и жду статус.
-- Как пользователь, после успеха я открываю текст транскрипта.
+- Из library отправляю клип в текущий чат.
+- Жму транскрибацию, вижу pending, потом текст.
+- Открываю готовый транскрипт иконкой просмотра.
 
 ## Требования
 
 ### Must
 
-- [ ] Library: иконка «Отправить в чат» (нужен открытый `conversationId`)
-- [ ] Send → сообщение с `files[]` из файла клипа (или server-side copy) через API 006
-- [ ] Library: иконка транскрибации; при `pending` — индикация
-- [ ] `POST /api/audio-clips/{id}/transcribe` (владелец) → ставит задачу
-- [ ] Клип в API: `transcript_status`, `transcript_text`, `transcript_error?`
-- [ ] После `done` — иконка просмотра → Dialog с текстом
-- [ ] ASR: faster-whisper локально (MIT), язык `ru`; конфиг `ASR_*` / reuse video URL
-- [ ] Ошибки ASR на русском в UI
+- [x] Library: Send (нужен `conversationId`)
+- [x] `POST /api/audio-clips/{id}/send` `{ conversation_id }` → сообщение + attachment
+- [x] Library: Transcribe + View (View только при `done`)
+- [x] `POST /api/audio-clips/{id}/transcribe` → `pending`, Job → ASR
+- [x] API клипа: `transcript_status` (`idle|pending|done|error`), `transcript_text`, `transcript_error`
+- [x] `services/asr/cli.py` → JSON `{ text }`; Laravel вызывает локальный subprocess
+- [x] `faster-whisper>=1.1.0`, язык `ru`; без `ASR_API_URL` / облака
+- [x] Ошибки на русском; чужой клип → 403
 
 ### Should
 
-- [ ] Повторная транскрибация перезаписывает текст
-- [ ] Poll статуса клипа пока library открыта и есть pending
+- [x] Poll list пока есть pending
+- [x] Повторный transcribe перезаписывает
 
 ### Must not
 
-- [ ] Не слать аудио во внешние облачные ASR
-- [ ] Не блокировать HTTP send сообщения на весь инференс (async job)
-- [ ] Не требовать диаризацию/SRT в MVP
-
-## UX / UI
-
-- Строка клипа: Play | Send | Transcribe | View(transcript) | Delete
-- View disabled/скрыт пока не `done`
-- Transcribe disabled при `pending`
-
-## Технические заметки
-
-- Миграция: `transcript_status` (string), `transcript_text` (text nullable),
-  `transcript_error` (text nullable), опц. `transcript_job_id`
-- Laravel Job → HTTP к ASR-сервису (файл с диска)
-- Вариант A: вызвать существующий `video` `:8020` (`/api/upload` + poll)
-- Вариант B: тонкий `api-asr` только для коротких клипов (предпочтительно позже)
+- [ ] Не звать `C:\OpenServer\video` и облачные ASR
+- [ ] Не блокировать HTTP-ответ пользователя на весь инференс (afterResponse / queue)
 
 ## Критерии приёмки
 
-1. Send из library → в ленте аудио у обоих участников
-2. Transcribe → pending → done; текст в Dialog
-3. Чужой клип: 403 на transcribe/send-server
-4. ASR down → status error, UI не падает
+1. Send → аудио в ленте
+2. Transcribe при живом `services/asr` → текст в Dialog
+3. ASR down → `error`, UI жив
+4. 403 на чужой clip
 
 ## Вне скоупа
 
-- Правка текста, экспорт SRT, саммари, облачный ASR
+- Диаризация, SRT, саммари, авто-transcribe при save

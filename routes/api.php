@@ -30,6 +30,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/audio-clips', [AudioClipController::class, 'index']);
     Route::post('/audio-clips', [AudioClipController::class, 'store']);
+    Route::post('/audio-clips/{audioClip}/transcribe', [AudioClipController::class, 'transcribe']);
+    Route::post('/audio-clips/{audioClip}/send', [AudioClipController::class, 'send']);
     Route::delete('/audio-clips/{audioClip}', [AudioClipController::class, 'destroy']);
 
     Route::get('/conversations/{conversation}/calls/active', [CallController::class, 'active']);

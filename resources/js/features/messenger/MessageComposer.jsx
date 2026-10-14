@@ -217,6 +217,7 @@ export function MessageComposer({ conversationId }) {
       <AudioClipsLibraryDialog
         open={libraryOpen}
         onClose={() => setLibraryOpen(false)}
+        conversationId={conversationId}
       />
     </Box>
   );

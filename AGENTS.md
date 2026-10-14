@@ -46,6 +46,12 @@ php artisan migrate --seed
 
 # websockets (отдельный процесс)
 php artisan websockets:serve
+
+# ASR (feature 014) — один раз поставить venv; HTTP-демон НЕ нужен
+cd services/asr
+python -m venv .venv
+.venv\Scripts\python.exe -m pip install -r requirements.txt
+# Laravel сам вызывает: .venv/.../python cli.py <файл>
 ```
 
 ## ИИ-чат (api-llm / gate)
@@ -58,6 +64,18 @@ php artisan websockets:serve
 
 **Полная инструкция для следующего агента (деплой, туннель, поломки):**  
 `C:\OpenServer\nr\gate-nr.local\AGENT_AI_LLM.md`
+
+## ASR (транскрибация клипов)
+
+Фича **014** (`specs/features/014-audio-transcription.md`, ADR-006).
+
+- **Внутри приложения** (не внешний сервис, в отличие от LLM/`api-llm`)
+- Код: `services/asr/` + CLI `cli.py` (faster-whisper, MIT)
+- HTTP `POST .../transcribe` → сразу 202, фон: `php artisan audio-clip:transcribe {id}`
+  (отдельный процесс, без белого экрана OpenServer)
+- Команда дергает локальный `services/asr/cli.py` (venv + ffmpeg)
+- Зависший `pending` > 3 мин → `error`, можно повторить
+- Не зависит от `C:\OpenServer\video` и не ходит в облачный ASR
 
 ## Ограничения
 
