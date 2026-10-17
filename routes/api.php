@@ -8,6 +8,8 @@ use App\Http\Controllers\Api\ConversationController;
 use App\Http\Controllers\Api\MessageController;
 use App\Http\Controllers\Api\MessageReactionController;
 use App\Http\Controllers\Api\ProfileController;
+use App\Http\Controllers\Api\TaskItemController;
+use App\Http\Controllers\Api\TaskListController;
 use App\Http\Controllers\Api\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -31,8 +33,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/audio-clips', [AudioClipController::class, 'index']);
     Route::post('/audio-clips', [AudioClipController::class, 'store']);
     Route::post('/audio-clips/{audioClip}/transcribe', [AudioClipController::class, 'transcribe']);
+    Route::post('/audio-clips/{audioClip}/extract-tasks', [AudioClipController::class, 'extractTasks']);
     Route::post('/audio-clips/{audioClip}/send', [AudioClipController::class, 'send']);
     Route::delete('/audio-clips/{audioClip}', [AudioClipController::class, 'destroy']);
+
+    Route::patch('/task-items/{taskItem}', [TaskItemController::class, 'update']);
+    Route::delete('/task-lists/{taskList}', [TaskListController::class, 'destroy']);
 
     Route::get('/conversations/{conversation}/calls/active', [CallController::class, 'active']);
     Route::post('/conversations/{conversation}/calls', [CallController::class, 'store']);

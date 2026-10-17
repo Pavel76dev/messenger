@@ -65,6 +65,7 @@ MySQL OpenServer (как соседние домены):
 - Laravel → `POST {LLM_API_URL}/api/chat` после сообщения пользователя (`GenerateAiReply` afterResponse)
 - Env: `LLM_API_URL`, `LLM_API_TOKEN`, `LLM_BOT_*`, `LLM_TARGET` — см. `.env.example`
 - **Production (gate):** на VPS `LLM_API_URL=http://127.0.0.1:18050`; домашний ПК держит SSH reverse tunnel на `api-llm:8050` (`gate-nr.local/scripts/start_llm_reverse_tunnel.py`, по аналогии с conveyor-bridge)
+- Списки задач из транскрипта клипа (015): `ExtractTasksFromTranscript` → те же `LlmClient` / api-llm; таблицы `task_lists` / `task_items` с FK на `audio_clips`; UI у строки клипа в library
 
 ## Правила
 

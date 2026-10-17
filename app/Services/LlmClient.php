@@ -10,8 +10,9 @@ class LlmClient
 {
     /**
      * @param  list<array{role: string, content: string}>  $messages
+     * @param  array{max_tokens?: int}  $options
      */
-    public function chat(array $messages): string
+    public function chat(array $messages, array $options = []): string
     {
         $base = rtrim((string) config('llm.api_url'), '/');
         if ($base === '') {
@@ -20,10 +21,15 @@ class LlmClient
 
         [$target, $model] = $this->resolveTargetAndModel($base);
 
+        $maxTokens = (int) ($options['max_tokens'] ?? 1024);
+        if ($maxTokens < 16) {
+            $maxTokens = 16;
+        }
+
         $payload = [
             'messages' => $messages,
             'stream' => false,
-            'max_tokens' => 1024,
+            'max_tokens' => $maxTokens,
             'target' => $target,
         ];
 

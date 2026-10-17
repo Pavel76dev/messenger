@@ -25,6 +25,21 @@ export async function transcribeAudioClip(id) {
   return apiRequest(`/api/audio-clips/${id}/transcribe`, { method: 'POST' });
 }
 
+export async function extractTasksFromAudioClip(id) {
+  return apiRequest(`/api/audio-clips/${id}/extract-tasks`, { method: 'POST' });
+}
+
+export async function updateTaskItemStatus(id, status) {
+  return apiRequest(`/api/task-items/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  });
+}
+
+export async function deleteTaskList(id) {
+  return apiRequest(`/api/task-lists/${id}`, { method: 'DELETE' });
+}
+
 export async function sendAudioClipToChat(id, conversationId) {
   return apiRequest(`/api/audio-clips/${id}/send`, {
     method: 'POST',

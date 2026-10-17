@@ -6,12 +6,22 @@ use Illuminate\Support\Facades\Log;
 use RuntimeException;
 
 /**
- * Запуск транскрибации в отдельном процессе PHP, чтобы HTTP-запрос
- * сразу вернул 202 и OpenServer/браузер не «залипали» белым экраном.
+ * Фоновый artisan (ASR / extract-tasks): HTTP сразу 202,
+ * OpenServer/браузер не «залипают» белым экраном.
  */
 class AsrBackground
 {
     public function startTranscribe(int $audioClipId): void
+    {
+        $this->startCommand('audio-clip:transcribe', $audioClipId, 'transcribe');
+    }
+
+    public function startExtractTasks(int $audioClipId): void
+    {
+        $this->startCommand('audio-clip:extract-tasks', $audioClipId, 'extract-tasks');
+    }
+
+    private function startCommand(string $artisanCommand, int $audioClipId, string $jobLabel): void
     {
         $php = $this->resolvePhpCli();
         $artisan = base_path('artisan');
@@ -24,23 +34,29 @@ class AsrBackground
         $this->ensureLogFile($logFile);
 
         if (PHP_OS_FAMILY === 'Windows') {
-            $this->startWindows($php, $artisan, $base, $audioClipId, $logFile);
+            $this->startWindows($php, $artisan, $base, $artisanCommand, $audioClipId, $jobLabel, $logFile);
 
             return;
         }
 
         $cmd = escapeshellarg($php).' '.escapeshellarg($artisan)
-            .' audio-clip:transcribe '.escapeshellarg((string) $audioClipId)
+            .' '.$artisanCommand.' '.escapeshellarg((string) $audioClipId)
             .' >> '.escapeshellarg($logFile).' 2>&1 &';
         exec($cmd);
-        Log::info('AsrBackground: unix spawn', ['audio_clip_id' => $audioClipId, 'php' => $php]);
+        Log::info('AsrBackground: unix spawn', [
+            'command' => $artisanCommand,
+            'audio_clip_id' => $audioClipId,
+            'php' => $php,
+        ]);
     }
 
     private function startWindows(
         string $php,
         string $artisan,
         string $base,
+        string $artisanCommand,
         int $audioClipId,
+        string $jobLabel,
         string $logFile
     ): void {
         $id = (string) $audioClipId;
@@ -49,30 +65,29 @@ class AsrBackground
             throw new RuntimeException('Не удалось создать каталог asr-jobs.');
         }
 
-        // .cmd с явным cd — Apache/CGI часто стартует не из корня проекта.
-        $script = $jobsDir.DIRECTORY_SEPARATOR.'transcribe-'.$id.'-'.bin2hex(random_bytes(4)).'.cmd';
+        $script = $jobsDir.DIRECTORY_SEPARATOR.$jobLabel.'-'.$id.'-'.bin2hex(random_bytes(4)).'.cmd';
         $content = implode("\r\n", [
             '@echo off',
             'cd /d '.escapeshellarg($base),
-            'echo ['.date('c').'] start clip '.$id.' php='.$php.' >> '.escapeshellarg($logFile),
-            escapeshellarg($php).' '.escapeshellarg($artisan).' audio-clip:transcribe '.$id
+            'echo ['.date('c').'] start '.$jobLabel.' clip '.$id.' php='.$php.' >> '.escapeshellarg($logFile),
+            escapeshellarg($php).' '.escapeshellarg($artisan).' '.$artisanCommand.' '.$id
                 .' >> '.escapeshellarg($logFile).' 2>&1',
-            'echo ['.date('c').'] end clip '.$id.' exit=%ERRORLEVEL% >> '.escapeshellarg($logFile),
+            'echo ['.date('c').'] end '.$jobLabel.' clip '.$id.' exit=%ERRORLEVEL% >> '.escapeshellarg($logFile),
             '',
         ]);
         if (file_put_contents($script, $content) === false) {
-            throw new RuntimeException('Не удалось записать cmd-обёртку ASR.');
+            throw new RuntimeException('Не удалось записать cmd-обёртку фона.');
         }
 
         $this->purgeOldJobScripts($jobsDir);
         $spawned = $this->spawnDetachedWindows($script, $this->windowsCmd());
         Log::info('AsrBackground: windows spawn', [
+            'command' => $artisanCommand,
             'audio_clip_id' => $audioClipId,
             'php' => $php,
             'script' => $script,
             'method' => $spawned,
         ]);
-        // Не пишем в тот же asr-background.log здесь: .cmd уже открыл его → EAGAIN на Windows.
     }
 
     /**
@@ -82,7 +97,6 @@ class AsrBackground
     {
         $powershell = $this->windowsPowerShell();
 
-        // start /B "" cmd /c call "script.cmd" — иначе .cmd иногда «не находится».
         $startCmd = $cmdExe.' /c start /B "" '.escapeshellarg($cmdExe).' /c call '.escapeshellarg($scriptPath);
         $handle = @popen($startCmd, 'r');
         if (is_resource($handle)) {
@@ -91,7 +105,6 @@ class AsrBackground
             return 'cmd-start';
         }
 
-        // Fallback: PowerShell Start-Process через -File (без вложенных -Command-кавычек).
         if ($powershell !== null) {
             $ps1 = dirname($scriptPath).DIRECTORY_SEPARATOR.'spawn-'.bin2hex(random_bytes(4)).'.ps1';
             $psBody = 'Start-Process -FilePath '.escapeshellarg($scriptPath)." -WindowStyle Hidden\r\n";
@@ -108,21 +121,23 @@ class AsrBackground
         }
 
         throw new RuntimeException(
-            'Не удалось запустить фоновую транскрибацию (popen недоступен).'
+            'Не удалось запустить фоновую задачу (popen недоступен).'
         );
     }
 
     private function purgeOldJobScripts(string $jobsDir): void
     {
         $cutoff = time() - 3600;
-        foreach (glob($jobsDir.DIRECTORY_SEPARATOR.'transcribe-*.cmd') ?: [] as $file) {
-            if (is_file($file) && filemtime($file) < $cutoff) {
-                @unlink($file);
-            }
-        }
-        foreach (glob($jobsDir.DIRECTORY_SEPARATOR.'spawn-*.ps1') ?: [] as $file) {
-            if (is_file($file) && filemtime($file) < $cutoff) {
-                @unlink($file);
+        $patterns = [
+            $jobsDir.DIRECTORY_SEPARATOR.'transcribe-*.cmd',
+            $jobsDir.DIRECTORY_SEPARATOR.'extract-tasks-*.cmd',
+            $jobsDir.DIRECTORY_SEPARATOR.'spawn-*.ps1',
+        ];
+        foreach ($patterns as $pattern) {
+            foreach (glob($pattern) ?: [] as $file) {
+                if (is_file($file) && filemtime($file) < $cutoff) {
+                    @unlink($file);
+                }
             }
         }
     }
@@ -156,10 +171,6 @@ class AsrBackground
         return is_file($cmd) ? $cmd : 'cmd.exe';
     }
 
-    /**
-     * Нужен настоящий php.exe для artisan.
-     * OpenServer + apache2handler: PHP_BINARY = httpd.exe (рядом php.exe нет).
-     */
     private function resolvePhpCli(): string
     {
         foreach ($this->phpCliCandidates() as $candidate) {
@@ -169,7 +180,7 @@ class AsrBackground
         }
 
         throw new RuntimeException(
-            'Не найден php.exe для ASR. Задайте ASR_PHP в .env. '
+            'Не найден php.exe для фона. Задайте ASR_PHP в .env. '
             .'PHP_BINARY='.PHP_BINARY.' PHP_BINDIR='.PHP_BINDIR
         );
     }
@@ -202,11 +213,9 @@ class AsrBackground
             if ($base === 'php.exe' && is_file($binary)) {
                 $candidates[] = $binary;
             } elseif ($binary !== '') {
-                $neighbor = dirname($binary).DIRECTORY_SEPARATOR.'php.exe';
-                $candidates[] = $neighbor;
+                $candidates[] = dirname($binary).DIRECTORY_SEPARATOR.'php.exe';
             }
 
-            // OpenServer: modules/php/PHP_8.1/php.exe (версия = текущий PHP модуля Apache)
             $verFolder = 'PHP_'.PHP_MAJOR_VERSION.'.'.PHP_MINOR_VERSION;
             foreach (['C:\\OSPanel\\modules\\php', 'C:\\ospanel\\modules\\php'] as $root) {
                 $candidates[] = $root.DIRECTORY_SEPARATOR.$verFolder.DIRECTORY_SEPARATOR.'php.exe';

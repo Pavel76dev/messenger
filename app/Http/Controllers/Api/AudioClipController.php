@@ -24,6 +24,7 @@ class AudioClipController extends Controller
 
         $clips = AudioClip::query()
             ->where('user_id', $request->user()->id)
+            ->with(['taskLists.items'])
             ->orderByDesc('created_at')
             ->limit(200)
             ->get()
@@ -122,7 +123,52 @@ class AudioClipController extends Controller
             return response()->json($audioClip->toApiArray(), 500);
         }
 
-        return response()->json($audioClip->fresh()->toApiArray(), 202);
+        return response()->json($audioClip->fresh()->load(['taskLists.items'])->toApiArray(), 202);
+    }
+
+    public function extractTasks(Request $request, AudioClip $audioClip, AsrBackground $background): JsonResponse
+    {
+        $this->assertOwner($request, $audioClip);
+
+        if ($audioClip->tasks_extract_status === AudioClip::TASKS_EXTRACT_PENDING
+            && ! $this->isStaleTasksExtractPending($audioClip)) {
+            return response()->json($audioClip->load(['taskLists.items'])->toApiArray());
+        }
+
+        if ($audioClip->transcript_status !== AudioClip::TRANSCRIPT_DONE
+            || trim((string) ($audioClip->transcript_text ?? '')) === '') {
+            throw ValidationException::withMessages([
+                'transcript' => ['Сначала нужна готовая транскрибация с текстом.'],
+            ]);
+        }
+
+        $audioClip->tasks_extract_status = AudioClip::TASKS_EXTRACT_PENDING;
+        $audioClip->tasks_extract_error = null;
+        $audioClip->save();
+
+        Log::info('audio-clip extract-tasks requested', [
+            'audio_clip_id' => $audioClip->id,
+            'php_sapi' => PHP_SAPI,
+        ]);
+
+        try {
+            $background->startExtractTasks((int) $audioClip->id);
+        } catch (\Throwable $exception) {
+            Log::warning('audio-clip extract-tasks spawn failed: '.$exception->getMessage(), [
+                'audio_clip_id' => $audioClip->id,
+            ]);
+            $audioClip->tasks_extract_status = AudioClip::TASKS_EXTRACT_ERROR;
+            $audioClip->tasks_extract_error = mb_substr(
+                'Не удалось запустить извлечение задач: '.$exception->getMessage(),
+                0,
+                1000
+            );
+            $audioClip->save();
+
+            return response()->json($audioClip->load(['taskLists.items'])->toApiArray(), 500);
+        }
+
+        return response()->json($audioClip->fresh()->load(['taskLists.items'])->toApiArray(), 202);
     }
 
     public function send(Request $request, AudioClip $audioClip): JsonResponse
@@ -209,5 +255,28 @@ class AudioClipController extends Controller
                 'transcript_status' => AudioClip::TRANSCRIPT_ERROR,
                 'transcript_error' => 'Транскрибация прервана или зависла. Нажмите ещё раз.',
             ]);
+
+        AudioClip::query()
+            ->where('user_id', $userId)
+            ->where('tasks_extract_status', AudioClip::TASKS_EXTRACT_PENDING)
+            ->where('updated_at', '<', now()->subMinutes(3))
+            ->update([
+                'tasks_extract_status' => AudioClip::TASKS_EXTRACT_ERROR,
+                'tasks_extract_error' => 'Извлечение задач прервано или зависло. Нажмите ещё раз.',
+            ]);
+    }
+
+    private function isStaleTasksExtractPending(AudioClip $clip): bool
+    {
+        if ($clip->tasks_extract_status !== AudioClip::TASKS_EXTRACT_PENDING) {
+            return false;
+        }
+
+        $updated = $clip->updated_at;
+        if (! $updated) {
+            return true;
+        }
+
+        return $updated->lt(now()->subMinutes(3));
     }
 }
