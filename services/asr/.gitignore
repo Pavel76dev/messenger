@@ -4,3 +4,8 @@ __pycache__/
 .env
 work/
 *.egg-info/
+models/**/model.bin
+models/**/tokenizer.json
+models/**/vocabulary.txt
+models/**/config.json
+!models/README.md

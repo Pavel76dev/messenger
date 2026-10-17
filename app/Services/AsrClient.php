@@ -29,6 +29,11 @@ class AsrClient
 
         $result = Process::path($workdir)
             ->timeout($timeout)
+            ->env([
+                // На Windows без этого stdout часто cp1251 → json_decode ломается.
+                'PYTHONIOENCODING' => 'utf-8',
+                'PYTHONUTF8' => '1',
+            ])
             ->run([
                 $python,
                 $cli,
@@ -44,6 +49,15 @@ class AsrClient
 
         $raw = trim($result->output());
         $json = json_decode($raw, true);
+        if (! is_array($json) || ! array_key_exists('text', $json)) {
+            // Fallback: консоль Windows могла отдать cp1251, если CLI старый.
+            if (function_exists('mb_convert_encoding')) {
+                $converted = @mb_convert_encoding($raw, 'UTF-8', 'Windows-1251');
+                if (is_string($converted)) {
+                    $json = json_decode($converted, true);
+                }
+            }
+        }
         if (! is_array($json) || ! array_key_exists('text', $json)) {
             throw new RuntimeException('ASR CLI вернул неожиданный ответ.');
         }

@@ -11,6 +11,7 @@ use App\Support\SafeBroadcast;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -96,8 +97,30 @@ class AudioClipController extends Controller
         $audioClip->transcript_text = null;
         $audioClip->save();
 
+        Log::info('audio-clip transcribe requested', [
+            'audio_clip_id' => $audioClip->id,
+            'php_sapi' => PHP_SAPI,
+            'php_binary' => PHP_BINARY,
+            'php_bindir' => PHP_BINDIR,
+        ]);
+
         // Отдельный PHP-процесс — HTTP сразу отдаёт 202, без белого экрана OpenServer.
-        $background->startTranscribe((int) $audioClip->id);
+        try {
+            $background->startTranscribe((int) $audioClip->id);
+        } catch (\Throwable $exception) {
+            Log::warning('audio-clip transcribe spawn failed: '.$exception->getMessage(), [
+                'audio_clip_id' => $audioClip->id,
+            ]);
+            $audioClip->transcript_status = AudioClip::TRANSCRIPT_ERROR;
+            $audioClip->transcript_error = mb_substr(
+                'Не удалось запустить транскрибацию: '.$exception->getMessage(),
+                0,
+                1000
+            );
+            $audioClip->save();
+
+            return response()->json($audioClip->toApiArray(), 500);
+        }
 
         return response()->json($audioClip->fresh()->toApiArray(), 202);
     }

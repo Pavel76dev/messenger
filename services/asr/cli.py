@@ -34,11 +34,24 @@ def main(argv: list[str]) -> int:
 
         result = transcribe_file(src)
     except Exception as exc:  # noqa: BLE001
-        print(str(exc), file=sys.stderr)
+        _write_stderr(str(exc))
         return 1
 
-    print(json.dumps(result, ensure_ascii=False))
+    # UTF-8 байты в stdout — иначе на Windows (cp1251) Laravel json_decode падает.
+    _write_stdout(json.dumps(result, ensure_ascii=False))
     return 0
+
+
+def _write_stdout(text: str) -> None:
+    sys.stdout.buffer.write(text.encode("utf-8"))
+    sys.stdout.buffer.write(b"\n")
+    sys.stdout.buffer.flush()
+
+
+def _write_stderr(text: str) -> None:
+    sys.stderr.buffer.write(text.encode("utf-8", errors="replace"))
+    sys.stderr.buffer.write(b"\n")
+    sys.stderr.buffer.flush()
 
 
 if __name__ == "__main__":

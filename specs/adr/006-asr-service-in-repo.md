@@ -13,10 +13,11 @@
 ## Решение
 
 1. Код Whisper лежит в репо: `services/asr/` (faster-whisper, MIT).
-2. Laravel Job `TranscribeAudioClip` вызывает **локальный subprocess**:
-   `{venv}/python services/asr/cli.py <файл>` → JSON на stdout.
-3. Сеть не используется (кроме однократной загрузки весов модели в кэш HF при первом запуске).
+2. HTTP `transcribe` → сразу 202; фон: `php artisan audio-clip:transcribe {id}`
+   (`AsrBackground`) → `{venv}/python cli.py <файл>` → JSON на stdout.
+3. Веса модели — локальная папка `services/asr/models/…` (копия из HF-кэша / video).
 4. Отдельный `uvicorn` / `ASR_API_URL` **не нужен** для работы фичи.
+5. Подробности для агента: `AGENT_AUDIO_ASR.md`.
 
 ## Альтернативы
 

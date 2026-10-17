@@ -65,17 +65,15 @@ python -m venv .venv
 **Полная инструкция для следующего агента (деплой, туннель, поломки):**  
 `C:\OpenServer\nr\gate-nr.local\AGENT_AI_LLM.md`
 
-## ASR (транскрибация клипов)
+## Аудио-клипы + ASR
 
-Фича **014** (`specs/features/014-audio-transcription.md`, ADR-006).
+Фичи **013** / **014** (`specs/features/013-audio-clips.md`, `014-audio-transcription.md`, ADR-006).
 
-- **Внутри приложения** (не внешний сервис, в отличие от LLM/`api-llm`)
-- Код: `services/asr/` + CLI `cli.py` (faster-whisper, MIT)
-- HTTP `POST .../transcribe` → сразу 202, фон: `php artisan audio-clip:transcribe {id}`
-  (отдельный процесс, без белого экрана OpenServer)
-- Команда дергает локальный `services/asr/cli.py` (venv + ffmpeg)
-- Зависший `pending` > 3 мин → `error`, можно повторить
-- Не зависит от `C:\OpenServer\video` и не ходит в облачный ASR
+- ASR **внутри** приложения (`services/asr/cli.py`), LLM — снаружи (`api-llm`)
+- `python run.py` **не нужен**; модель локально в `services/asr/models/`
+
+**Полная инструкция для следующего агента (setup, поломки, деплой-заметки):**  
+[`AGENT_AUDIO_ASR.md`](AGENT_AUDIO_ASR.md)
 
 ## Ограничения
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 import uuid
@@ -12,8 +13,38 @@ _whisper_model = None
 
 def _ffmpeg_executable() -> str | None:
     if settings.ffmpeg_path:
-        return settings.ffmpeg_path
-    return shutil.which("ffmpeg")
+        path = Path(settings.ffmpeg_path)
+        if path.is_file():
+            return str(path)
+
+    which = shutil.which("ffmpeg")
+    if which:
+        return which
+
+    # Apache/служба Windows часто без user PATH (winget ffmpeg туда не попадает).
+    return _discover_ffmpeg()
+
+
+def _discover_ffmpeg() -> str | None:
+    candidates: list[Path] = []
+    local = os.environ.get("LOCALAPPDATA") or os.environ.get("USERPROFILE")
+    if local:
+        winget = Path(local) / "Microsoft" / "WinGet" / "Packages"
+        if winget.is_dir():
+            candidates.extend(winget.glob("Gyan.FFmpeg*/ffmpeg-*/bin/ffmpeg.exe"))
+            candidates.extend(winget.glob("Gyan.FFmpeg*/**/ffmpeg.exe"))
+    for folder in (
+        Path(r"C:\ffmpeg\bin"),
+        Path(r"C:\OSPanel\modules\ffmpeg\bin"),
+        Path(r"C:\Program Files\ffmpeg\bin"),
+        Path(r"C:\ProgramData\chocolatey\bin"),
+    ):
+        candidates.append(folder / "ffmpeg.exe")
+
+    for path in candidates:
+        if path.is_file():
+            return str(path)
+    return None
 
 
 def extract_wav(src: Path, dst: Path) -> None:
@@ -47,24 +78,15 @@ def _get_whisper_model():
     if _whisper_model is None:
         from faster_whisper import WhisperModel
 
-        # local_files_only: не ходить в HF, если модель уже в кэше (офлайн/прокси).
-        local_only = False
-        try:
-            _whisper_model = WhisperModel(
-                settings.whisper_model,
-                device=settings.whisper_device,
-                compute_type=settings.whisper_compute_type,
-                local_files_only=True,
-            )
-            local_only = True
-        except Exception:
-            _whisper_model = WhisperModel(
-                settings.whisper_model,
-                device=settings.whisper_device,
-                compute_type=settings.whisper_compute_type,
-            )
-        if local_only:
-            pass
+        model_id = settings.whisper_model
+        is_local_dir = Path(model_id).is_dir()
+        # Локальная папка / кэш — без сети. Имя HF — только если локальной копии нет.
+        _whisper_model = WhisperModel(
+            model_id,
+            device=settings.whisper_device,
+            compute_type=settings.whisper_compute_type,
+            local_files_only=is_local_dir,
+        )
     return _whisper_model
 
 
