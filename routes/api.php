@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\TaskItemController;
 use App\Http\Controllers\Api\TaskListController;
 use App\Http\Controllers\Api\UserController;
+use App\Http\Controllers\Api\UserSettingsController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/register', [AuthController::class, 'register']);
@@ -22,6 +23,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('/me', [ProfileController::class, 'update']);
     Route::post('/me/avatar', [ProfileController::class, 'uploadAvatar']);
     Route::delete('/me/avatar', [ProfileController::class, 'deleteAvatar']);
+    Route::get('/me/settings', [UserSettingsController::class, 'show']);
+    Route::patch('/me/settings', [UserSettingsController::class, 'update']);
     Route::get('/users', [UserController::class, 'index']);
     Route::get('/ai-bot', [AiBotController::class, 'show']);
     Route::get('/conversations', [ConversationController::class, 'index']);

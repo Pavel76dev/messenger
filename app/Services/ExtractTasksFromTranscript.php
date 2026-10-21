@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\AudioClip;
 use App\Models\TaskItem;
 use App\Models\TaskList;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use RuntimeException;
@@ -14,6 +15,7 @@ class ExtractTasksFromTranscript
 {
     public function __construct(
         private LlmClient $llm,
+        private TasksExtractPromptBuilder $promptBuilder,
     ) {
     }
 
@@ -29,13 +31,17 @@ class ExtractTasksFromTranscript
         }
 
         try {
-            $parsed = $this->askLlm($text);
+            $owner = User::query()->find($clip->user_id);
+            if (! $owner) {
+                throw new RuntimeException('Владелец клипа не найден.');
+            }
+            $parsed = $this->askLlm($owner, $text);
             $tasks = $parsed['tasks'];
             $title = $parsed['title'];
 
             if ($tasks === []) {
                 $clip->tasks_extract_status = AudioClip::TASKS_EXTRACT_EMPTY;
-                $clip->tasks_extract_error = 'Явных задач в тексте не найдено.';
+                $clip->tasks_extract_error = 'Задач в тексте не найдено.';
                 $clip->save();
 
                 return;
@@ -75,24 +81,17 @@ class ExtractTasksFromTranscript
     /**
      * @return array{title: string, tasks: list<string>}
      */
-    private function askLlm(string $transcript): array
+    private function askLlm(User $owner, string $transcript): array
     {
-        $system = 'Ты парсер задач. Отвечай только JSON без markdown. '
-            .'Формат: {"title":"строка","tasks":[{"text":"строка"}]}. '
-            .'Бери формулировки с глаголами действия (купить, позвонить, сделать, записаться…). '
-            .'Если дел нет: {"title":"","tasks":[]}.';
-
-        $user = "Пример ответа для «Нужно купить хлеб и позвонить маме»:\n"
-            ."{\"title\":\"Дела\",\"tasks\":[{\"text\":\"купить хлеб\"},{\"text\":\"позвонить маме\"}]}\n\n"
-            ."Транскрипт:\n".$transcript;
+        [$system, $userMessage] = $this->promptBuilder->build($owner, $transcript);
 
         $raw = $this->llm->chat([
             ['role' => 'system', 'content' => $system],
-            ['role' => 'user', 'content' => $user],
-        ], ['max_tokens' => 320]);
+            ['role' => 'user', 'content' => $userMessage],
+        ], ['max_tokens' => 700]);
 
         Log::info('ExtractTasksFromTranscript LLM raw', [
-            'preview' => mb_substr($raw, 0, 500),
+            'preview' => mb_substr($raw, 0, 800),
         ]);
 
         return $this->parseTasksJson($raw);

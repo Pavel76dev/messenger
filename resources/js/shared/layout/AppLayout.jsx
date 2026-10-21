@@ -42,22 +42,32 @@ export function AppLayout({ children }) {
             Мессенджер
           </Typography>
           {user && (
-            <Button
-              component={RouterLink}
-              to="/profile"
-              color="inherit"
-              startIcon={
-                <Avatar
-                  src={user.avatar_url || undefined}
-                  sx={{ width: 28, height: 28, fontSize: 12 }}
-                >
-                  {getInitials(user.name)}
-                </Avatar>
-              }
-              sx={{ mr: 1, textTransform: 'none' }}
-            >
-              {user.name}
-            </Button>
+            <>
+              <Button
+                component={RouterLink}
+                to="/settings"
+                color="inherit"
+                sx={{ mr: 1, textTransform: 'none' }}
+              >
+                Настройки
+              </Button>
+              <Button
+                component={RouterLink}
+                to="/profile"
+                color="inherit"
+                startIcon={
+                  <Avatar
+                    src={user.avatar_url || undefined}
+                    sx={{ width: 28, height: 28, fontSize: 12 }}
+                  >
+                    {getInitials(user.name)}
+                  </Avatar>
+                }
+                sx={{ mr: 1, textTransform: 'none' }}
+              >
+                {user.name}
+              </Button>
+            </>
           )}
           <Button color="inherit" onClick={handleLogout}>
             Выйти

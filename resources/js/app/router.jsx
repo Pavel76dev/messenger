@@ -3,6 +3,7 @@ import { ProtectedRoute } from '../features/auth/ProtectedRoute';
 import { LoginPage } from '../features/auth/LoginPage';
 import { RegisterPage } from '../features/auth/RegisterPage';
 import { ProfilePage } from '../features/auth/ProfilePage';
+import { SettingsPage } from '../features/settings/SettingsPage';
 import { MessengerPage } from '../features/messenger/MessengerPage';
 import { AppLayout } from '../shared/layout/AppLayout';
 import { APP_BASE } from '../shared/config';
@@ -29,6 +30,16 @@ export function AppRouter() {
             <ProtectedRoute>
               <AppLayout>
                 <ProfilePage />
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            <ProtectedRoute>
+              <AppLayout>
+                <SettingsPage />
               </AppLayout>
             </ProtectedRoute>
           }

@@ -55,6 +55,7 @@
 12. ~~Аудио-фрагменты (запись / серверная библиотека / отправка)~~ — `features/013-audio-clips.md` (implemented)
 13. ~~Отправка из библиотеки + транскрибация клипов~~ — `features/014-audio-transcription.md` (implemented)
 14. ~~Список задач из транскрипта (LLM)~~ — `features/015-transcript-task-lists.md` (implemented)
+15. ~~Настройки пользователя (промпт задач)~~ — `features/016-user-settings.md` (implemented)
 
 Процесс новых фич: [`sdls.md`](./sdls.md).
 

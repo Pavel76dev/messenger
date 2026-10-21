@@ -95,9 +95,14 @@ export function ProfilePage() {
 
   return (
     <Container maxWidth="sm" sx={{ py: 4 }}>
-      <Button component={RouterLink} to="/" sx={{ mb: 2 }}>
-        ← К чатам
-      </Button>
+      <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
+        <Button component={RouterLink} to="/">
+          ← К чатам
+        </Button>
+        <Button component={RouterLink} to="/settings" color="inherit">
+          Настройки
+        </Button>
+      </Stack>
 
       <Paper sx={{ p: 3 }}>
         <Typography variant="h5" gutterBottom>
