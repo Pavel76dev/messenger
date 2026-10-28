@@ -10,7 +10,7 @@ class LlmClient
 {
     /**
      * @param  list<array{role: string, content: string}>  $messages
-     * @param  array{max_tokens?: int}  $options
+     * @param  array{max_tokens?: int, timeout?: int}  $options
      */
     public function chat(array $messages, array $options = []): string
     {
@@ -26,6 +26,11 @@ class LlmClient
             $maxTokens = 16;
         }
 
+        $timeout = (int) ($options['timeout'] ?? config('llm.timeout_sec', 120));
+        if ($timeout < 10) {
+            $timeout = 10;
+        }
+
         $payload = [
             'messages' => $messages,
             'stream' => false,
@@ -38,7 +43,7 @@ class LlmClient
         }
 
         $response = $this->http()
-            ->timeout((int) config('llm.timeout_sec', 120))
+            ->timeout($timeout)
             ->post("{$base}/api/chat", $payload);
 
         if (! $response->successful()) {
@@ -69,11 +74,18 @@ class LlmClient
         $configuredModel = config('llm.model');
         $model = is_string($configuredModel) && $configuredModel !== '' ? $configuredModel : null;
 
-        if (in_array($configuredTarget, ['local', 'remote'], true)) {
+        if ($configuredTarget === 'cursor') {
+            $configuredTarget = 'mcp';
+        }
+        if (in_array($configuredTarget, ['local', 'remote', 'mcp'], true)) {
+            if ($configuredTarget === 'mcp' && $model === null) {
+                $model = 'cursor';
+            }
+
             return [$configuredTarget, $model];
         }
 
-        // auto: спросить health и выбрать reachable бэкенд
+        // auto: спросить health и выбрать reachable бэкенд (mcp в auto не берём — нужен живой агент)
         try {
             $health = $this->http()->timeout(15)->get("{$base}/api/health");
         } catch (\Throwable $exception) {
@@ -87,6 +99,9 @@ class LlmClient
         $data = $health->json() ?: [];
         $backends = is_array($data['backends'] ?? null) ? $data['backends'] : [];
         $default = strtolower((string) ($data['default_target'] ?? 'local'));
+        if ($default === 'cursor') {
+            $default = 'mcp';
+        }
 
         $order = [];
         if (in_array($default, ['local', 'remote'], true)) {
@@ -116,7 +131,8 @@ class LlmClient
         }
 
         throw new RuntimeException(
-            'api-llm: ни local, ни remote не reachable. Проверьте Ollama/LM Studio и LLM_REMOTE_BASE_URL.'
+            'api-llm: ни local, ни remote не reachable. Проверьте Ollama/LM Studio и LLM_REMOTE_BASE_URL. '
+            .'Для Cursor задайте LLM_TARGET=mcp.'
         );
     }
 

@@ -29,15 +29,17 @@ export const fetchMessages = createAsyncThunk(
       const data = await apiRequest(
         `/api/conversations/${conversationId}/messages${query}`,
       );
-      const messages = Array.isArray(data) ? data : data.messages || data.data || [];
+      const messages = Array.isArray(data)
+        ? data
+        : data?.messages || data?.data || [];
       return {
         conversationId,
-        messages,
+        messages: Array.isArray(messages) ? messages : [],
         append: Boolean(afterId),
         silent: Boolean(silent),
       };
     } catch (error) {
-      return rejectWithValue(error.message);
+      return rejectWithValue(error?.message || 'Не удалось загрузить сообщения');
     }
   },
 );
@@ -58,10 +60,13 @@ export const sendMessage = createAsyncThunk(
         method: 'POST',
         body: formData,
       });
-      const message = data.message || data;
+      const message = data?.message || data;
+      if (!message?.id) {
+        return rejectWithValue('Сервер вернул пустой ответ при отправке');
+      }
       return { conversationId, message };
     } catch (error) {
-      return rejectWithValue(error.message);
+      return rejectWithValue(error?.message || 'Не удалось отправить сообщение');
     }
   },
 );
@@ -74,11 +79,13 @@ export const toggleMessageReaction = createAsyncThunk(
         method: 'POST',
         body: JSON.stringify({ reaction_key: reactionKey }),
       });
-      return {
-        message: data.message || data,
-      };
+      const message = data?.message || data;
+      if (!message?.id) {
+        return rejectWithValue('Сервер вернул пустой ответ при реакции');
+      }
+      return { message };
     } catch (error) {
-      return rejectWithValue(error.message);
+      return rejectWithValue(error?.message || 'Не удалось обновить реакцию');
     }
   },
 );

@@ -62,10 +62,28 @@ class AudioClipController extends Controller
             'mime' => $file->getClientMimeType() ?: 'audio/webm',
             'size' => $file->getSize() ?: 0,
             'duration_ms' => $data['duration_ms'] ?? null,
-            'transcript_status' => AudioClip::TRANSCRIPT_IDLE,
+            'transcript_status' => AudioClip::TRANSCRIPT_PENDING,
+            'transcript_error' => null,
+            'transcript_text' => null,
         ]);
 
-        return response()->json($clip->toApiArray(), 201);
+        // Авто-ASR в фоне (017): HTTP не ждёт инференс.
+        try {
+            app(AsrBackground::class)->startTranscribe((int) $clip->id);
+        } catch (\Throwable $exception) {
+            Log::warning('audio-clip auto-transcribe spawn failed: '.$exception->getMessage(), [
+                'audio_clip_id' => $clip->id,
+            ]);
+            $clip->transcript_status = AudioClip::TRANSCRIPT_ERROR;
+            $clip->transcript_error = mb_substr(
+                'Не удалось запустить транскрибацию: '.$exception->getMessage(),
+                0,
+                1000
+            );
+            $clip->save();
+        }
+
+        return response()->json($clip->fresh()->load(['taskLists.items'])->toApiArray(), 201);
     }
 
     public function destroy(Request $request, AudioClip $audioClip): JsonResponse

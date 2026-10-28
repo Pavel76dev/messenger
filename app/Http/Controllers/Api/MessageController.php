@@ -10,7 +10,10 @@ use App\Models\Message;
 use App\Models\MessageAttachment;
 use App\Models\User;
 use App\Services\AiBot;
+use App\Services\AsrBackground;
+use App\Services\AttachmentTextExtractor;
 use App\Support\SafeBroadcast;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -110,9 +113,36 @@ class MessageController extends Controller
         $payload = $this->serializeForApi($message, $request->user()->id);
         SafeBroadcast::toOthers(new MessageCreated((int) $conversation->id, $payload));
 
+        $this->maybeExtractAttachments($message);
         $this->maybeDispatchAiReply($conversation, $message, $request->user());
 
         return response()->json($payload, 201);
+    }
+
+    private function maybeExtractAttachments(Message $message): void
+    {
+        $extractor = app(AttachmentTextExtractor::class);
+        $ids = [];
+        foreach ($message->attachments as $attachment) {
+            if ($extractor->isSupported($attachment->mime, $attachment->original_name)) {
+                $ids[] = (int) $attachment->id;
+            } else {
+                $extractor->ensureExtracted($attachment);
+            }
+        }
+        if ($ids === []) {
+            return;
+        }
+
+        dispatch(function () use ($ids) {
+            $svc = app(AttachmentTextExtractor::class);
+            foreach ($ids as $id) {
+                $attachment = MessageAttachment::query()->find($id);
+                if ($attachment) {
+                    $svc->extract($attachment);
+                }
+            }
+        })->afterResponse();
     }
 
     private function maybeDispatchAiReply(Conversation $conversation, Message $message, User $sender): void
@@ -136,7 +166,16 @@ class MessageController extends Controller
             return;
         }
 
-        GenerateAiReply::dispatch((int) $conversation->id, (int) $message->id)->afterResponse();
+        // Отдельный PHP CLI — иначе router+reply LLM упираются в max_execution_time=60 у Apache.
+        try {
+            app(AsrBackground::class)->startAiReply((int) $conversation->id, (int) $message->id);
+        } catch (\Throwable $exception) {
+            Log::warning('AI reply background spawn failed, fallback afterResponse: '.$exception->getMessage(), [
+                'conversation_id' => $conversation->id,
+                'message_id' => $message->id,
+            ]);
+            GenerateAiReply::dispatch((int) $conversation->id, (int) $message->id)->afterResponse();
+        }
     }
 
     public function serializeForApi(Message $message, ?int $currentUserId = null): array

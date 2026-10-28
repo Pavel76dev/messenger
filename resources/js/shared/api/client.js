@@ -46,11 +46,14 @@ export async function apiRequest(path, options = {}) {
   const data = isJson ? await response.json().catch(() => null) : null;
 
   if (!response.ok) {
-    const message =
+    let message =
       data?.message ||
       data?.error ||
       (data?.errors && Object.values(data.errors).flat().join(' ')) ||
       `Ошибка ${response.status}`;
+    if (response.status === 401 || /unauthenticated/i.test(String(message))) {
+      message = 'Сессия истекла — войдите снова.';
+    }
     const error = new Error(message);
     error.status = response.status;
     error.data = data;

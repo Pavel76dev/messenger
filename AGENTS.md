@@ -58,11 +58,12 @@ python -m venv .venv
 
 Фича **012** (`specs/features/012-ai-chat.md`, ADR-004).
 
-- Локально: `LLM_API_URL=http://127.0.0.1:8050`, `LLM_TARGET=local`; сервис `C:\OpenServer\api-llm`.
+- Локально: `LLM_API_URL=http://127.0.0.1:8050`, `LLM_TARGET=local|remote|mcp`; сервис `C:\OpenServer\api-llm`.
+- `LLM_TARGET=mcp` — отвечает агент Cursor через MCP `api-llm` (`C:\OpenServer\api-llm\docs\ustrojstvo\mcp.md`).
 - Smoke: `python scripts/probe_ai_llm.py`
 - Прод (`__nr_gate/`): reverse SSH туннель VPS `:18050` → ПК `:8050`.
 
-**Полная инструкция для следующего агента (деплой, туннель, поломки):**  
+**Полная инструкция для следующего агента (деплой, туннель, поломки):** 
 `C:\OpenServer\nr\gate-nr.local\AGENT_AI_LLM.md`
 
 ## Аудио-клипы + ASR

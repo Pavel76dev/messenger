@@ -373,8 +373,10 @@ export function AudioClipsLibraryDialog({ open, onClose, conversationId }) {
                               pending
                                 ? 'Идёт транскрибация…'
                                 : failed
-                                  ? clip.transcript_error || 'Ошибка — повторить'
-                                  : 'Транскрибировать'
+                                  ? clip.transcript_error || 'Ошибка — нажмите, чтобы повторить'
+                                  : done
+                                    ? 'Перетранскрибировать'
+                                    : 'Транскрибация обычно стартует сама после сохранения; можно запустить вручную'
                             }
                           >
                             <span>

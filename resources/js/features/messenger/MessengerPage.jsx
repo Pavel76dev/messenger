@@ -162,8 +162,9 @@ export function MessengerPage() {
     }
 
     const handleIncoming = (payload) => {
-      const adapted = adaptRealtimeMessage(payload?.message, currentUser.id);
-      if (adapted) {
+      const raw = payload?.message ?? payload;
+      const adapted = adaptRealtimeMessage(raw, currentUser.id);
+      if (adapted?.id) {
         dispatch(applyRealtimeMessage(adapted));
         dispatch(fetchConversations());
       }

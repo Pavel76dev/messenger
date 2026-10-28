@@ -6,22 +6,34 @@ use Illuminate\Support\Facades\Log;
 use RuntimeException;
 
 /**
- * Фоновый artisan (ASR / extract-tasks): HTTP сразу 202,
- * OpenServer/браузер не «залипают» белым экраном.
+ * Фоновый artisan (ASR / extract-tasks / AI reply): HTTP не ждёт инференс,
+ * OpenServer/браузер не «залипают» и не упираются в max_execution_time=60.
  */
 class AsrBackground
 {
     public function startTranscribe(int $audioClipId): void
     {
-        $this->startCommand('audio-clip:transcribe', $audioClipId, 'transcribe');
+        $this->startCommand('audio-clip:transcribe', [(string) $audioClipId], 'transcribe');
     }
 
     public function startExtractTasks(int $audioClipId): void
     {
-        $this->startCommand('audio-clip:extract-tasks', $audioClipId, 'extract-tasks');
+        $this->startCommand('audio-clip:extract-tasks', [(string) $audioClipId], 'extract-tasks');
     }
 
-    private function startCommand(string $artisanCommand, int $audioClipId, string $jobLabel): void
+    public function startAiReply(int $conversationId, int $messageId): void
+    {
+        $this->startCommand(
+            'ai:reply',
+            [(string) $conversationId, (string) $messageId],
+            'ai-reply'
+        );
+    }
+
+    /**
+     * @param  list<string>  $arguments
+     */
+    private function startCommand(string $artisanCommand, array $arguments, string $jobLabel): void
     {
         $php = $this->resolvePhpCli();
         $artisan = base_path('artisan');
@@ -32,20 +44,35 @@ class AsrBackground
         $base = base_path();
         $logFile = storage_path('logs/asr-background.log');
         $this->ensureLogFile($logFile);
+        $argsLine = implode(' ', array_map(
+            static fn (string $arg) => escapeshellarg($arg),
+            $arguments
+        ));
+        $argsPlain = implode(' ', $arguments);
+        $jobKey = $arguments[0] ?? '0';
 
         if (PHP_OS_FAMILY === 'Windows') {
-            $this->startWindows($php, $artisan, $base, $artisanCommand, $audioClipId, $jobLabel, $logFile);
+            $this->startWindows(
+                $php,
+                $artisan,
+                $base,
+                $artisanCommand,
+                $argsPlain,
+                $jobLabel,
+                $jobKey,
+                $logFile
+            );
 
             return;
         }
 
         $cmd = escapeshellarg($php).' '.escapeshellarg($artisan)
-            .' '.$artisanCommand.' '.escapeshellarg((string) $audioClipId)
+            .' '.$artisanCommand.' '.$argsLine
             .' >> '.escapeshellarg($logFile).' 2>&1 &';
         exec($cmd);
         Log::info('AsrBackground: unix spawn', [
             'command' => $artisanCommand,
-            'audio_clip_id' => $audioClipId,
+            'arguments' => $arguments,
             'php' => $php,
         ]);
     }
@@ -55,24 +82,24 @@ class AsrBackground
         string $artisan,
         string $base,
         string $artisanCommand,
-        int $audioClipId,
+        string $argsPlain,
         string $jobLabel,
+        string $jobKey,
         string $logFile
     ): void {
-        $id = (string) $audioClipId;
         $jobsDir = storage_path('app/asr-jobs');
         if (! is_dir($jobsDir) && ! mkdir($jobsDir, 0775, true) && ! is_dir($jobsDir)) {
             throw new RuntimeException('Не удалось создать каталог asr-jobs.');
         }
 
-        $script = $jobsDir.DIRECTORY_SEPARATOR.$jobLabel.'-'.$id.'-'.bin2hex(random_bytes(4)).'.cmd';
+        $script = $jobsDir.DIRECTORY_SEPARATOR.$jobLabel.'-'.$jobKey.'-'.bin2hex(random_bytes(4)).'.cmd';
         $content = implode("\r\n", [
             '@echo off',
             'cd /d '.escapeshellarg($base),
-            'echo ['.date('c').'] start '.$jobLabel.' clip '.$id.' php='.$php.' >> '.escapeshellarg($logFile),
-            escapeshellarg($php).' '.escapeshellarg($artisan).' '.$artisanCommand.' '.$id
+            'echo ['.date('c').'] start '.$jobLabel.' '.$argsPlain.' php='.$php.' >> '.escapeshellarg($logFile),
+            escapeshellarg($php).' '.escapeshellarg($artisan).' '.$artisanCommand.' '.$argsPlain
                 .' >> '.escapeshellarg($logFile).' 2>&1',
-            'echo ['.date('c').'] end '.$jobLabel.' clip '.$id.' exit=%ERRORLEVEL% >> '.escapeshellarg($logFile),
+            'echo ['.date('c').'] end '.$jobLabel.' '.$argsPlain.' exit=%ERRORLEVEL% >> '.escapeshellarg($logFile),
             '',
         ]);
         if (file_put_contents($script, $content) === false) {
@@ -83,7 +110,7 @@ class AsrBackground
         $spawned = $this->spawnDetachedWindows($script, $this->windowsCmd());
         Log::info('AsrBackground: windows spawn', [
             'command' => $artisanCommand,
-            'audio_clip_id' => $audioClipId,
+            'arguments' => $argsPlain,
             'php' => $php,
             'script' => $script,
             'method' => $spawned,
@@ -131,6 +158,7 @@ class AsrBackground
         $patterns = [
             $jobsDir.DIRECTORY_SEPARATOR.'transcribe-*.cmd',
             $jobsDir.DIRECTORY_SEPARATOR.'extract-tasks-*.cmd',
+            $jobsDir.DIRECTORY_SEPARATOR.'ai-reply-*.cmd',
             $jobsDir.DIRECTORY_SEPARATOR.'spawn-*.ps1',
         ];
         foreach ($patterns as $pattern) {

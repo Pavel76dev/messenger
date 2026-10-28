@@ -67,6 +67,7 @@ MySQL OpenServer (как соседние домены):
 - **Production (gate):** на VPS `LLM_API_URL=http://127.0.0.1:18050`; домашний ПК держит SSH reverse tunnel на `api-llm:8050` (`gate-nr.local/scripts/start_llm_reverse_tunnel.py`, по аналогии с conveyor-bridge)
 - Списки задач из транскрипта клипа (015): `ExtractTasksFromTranscript` → те же `LlmClient` / api-llm; таблицы `task_lists` / `task_items` с FK на `audio_clips`; UI у строки клипа в library
 - Персональные настройки (016): `user_settings` key/value + реестр `config/user_settings.php`; UI `/settings`; промпт extract-tasks читается от владельца клипа
+- Контекст ассистента (017): авто-ASR при save клипа; LLM-роутер `need_workspace` → при true `AssistantWorkspaceContext` (чаты, extract вложений, транскрипты) → reply; кэш extract на `message_attachments`; `smalot/pdfparser` + ZipArchive для docx (ADR-007)
 
 ## Правила
 
